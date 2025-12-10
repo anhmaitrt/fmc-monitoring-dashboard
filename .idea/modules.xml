@@ -2,7 +2,8 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/fmc_monitoring_dashboard/fmc_monitoring_dashboard.iml" filepath="$PROJECT_DIR$/fmc_monitoring_dashboard/fmc_monitoring_dashboard.iml" />
+      <module fileurl="file://$PROJECT_DIR$/fmc_monitoring_dashboard.iml" filepath="$PROJECT_DIR$/fmc_monitoring_dashboard.iml" />
+      <module fileurl="file://$PROJECT_DIR$/android/fmc_monitoring_dashboard_android.iml" filepath="$PROJECT_DIR$/android/fmc_monitoring_dashboard_android.iml" />
     </modules>
   </component>
 </project>
