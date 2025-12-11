@@ -3,6 +3,7 @@
 import 'dart:io' as drive;
 
 import 'package:flutter/material.dart';
+import 'package:fmc_monitoring_dashboard/core/components/data_table_view.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:google_sign_in_web/web_only.dart' as web;
 import 'package:googleapis/admob/v1.dart';
@@ -27,7 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Đăng Nhập'),),
+      appBar: AppBar(title: Text('Monitoring Board'),),
       body: _buildBody(),
     );
   }
@@ -38,11 +39,12 @@ class _HomeScreenState extends State<HomeScreen> {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Text("Files in your folder:"),
-        for (var file in _files)
-          ListTile(
-            title: Text(file.path ?? 'No Name'),
-            subtitle: Text(file.path ?? 'No ID'),
-          ),
+        // for (var file in _files)
+        //   ListTile(
+        //     title: Text(file.path ?? 'No Name'),
+        //     subtitle: Text(file.path ?? 'No ID'),
+        //   ),
+        Expanded(child: DataTableChartPage())
       ],
     );
   }

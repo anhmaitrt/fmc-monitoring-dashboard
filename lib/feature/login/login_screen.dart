@@ -46,7 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Monitoring Dashboard'),
+        title: Text('Đăng Nhập'),
         automaticallyImplyLeading: false,
       ),
       body: Center(
