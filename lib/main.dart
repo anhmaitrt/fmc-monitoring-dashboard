@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io' as drive;
 
 import 'package:flutter/material.dart';
-import 'package:fmc_monitoring_dashboard/services/drive_service.dart';
+import 'core/services/google_service.dart';
 import 'feature/app.dart';
 
 void main() {
