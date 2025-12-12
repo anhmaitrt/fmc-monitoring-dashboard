@@ -3,6 +3,7 @@ import 'package:fmc_monitoring_dashboard/core/utils/app_size.dart';
 import 'package:fmc_monitoring_dashboard/model/total_cgm_file.dart';
 
 import '../../core/services/google_service.dart';
+import '../../core/services/toast_service.dart';
 import '../../core/style/app_colors.dart';
 
 class TotalCGMScreen extends StatefulWidget {
@@ -84,7 +85,7 @@ class _TotalCGMScreenState extends State<TotalCGMScreen> {
         controller: _searchCtrl,
         onChanged: (v) => setState(() => _query = v.trim().toLowerCase()),
         decoration: InputDecoration(
-          hintText: 'Search by id / phone / name / platform...',
+          hintText: 'Nhập từ khóa để tìm kiếm id / phone / name / platform...',
           prefixIcon: const Icon(Icons.search),
           suffixIcon: _query.isEmpty
               ? null
@@ -137,48 +138,6 @@ class _TotalCGMScreenState extends State<TotalCGMScreen> {
         })
       ],
     );
-    // return Column(
-    //   mainAxisSize: MainAxisSize.min,
-    //   children: [
-    //     Text(files.firstOrNull?.fileName ?? ''),
-    //     Expanded(
-    //       child: Table(
-    //         border: TableBorder.all(color: Colors.black),
-    //         columnWidths: {
-    //           0: FlexColumnWidth(2),
-    //         },
-    //         children: [
-    //           TableRow(
-    //             decoration: BoxDecoration(color: Colors.grey[300]),
-    //             children: [
-    //               Padding(padding: EdgeInsets.all(8), child: Text("Id")),
-    //               Padding(padding: EdgeInsets.all(8), child: Text("Số Điện Thoại")),
-    //               Padding(padding: EdgeInsets.all(8), child: Text("Họ Tên")),
-    //               Padding(padding: EdgeInsets.all(8), child: Text("Platform")),
-    //               Padding(padding: EdgeInsets.all(8), child: Text("Đã Xóa")),
-    //               Padding(padding: EdgeInsets.all(8), child: Text("Ngày Bắt Đầu")),
-    //               Padding(padding: EdgeInsets.all(8), child: Text("Ngày Kết Thúc")),
-    //             ],
-    //           ),
-    //           // Data rows
-    //           ...files.map((file) {
-    //             return TableRow(
-    //               children: [
-    //                 Padding(padding: EdgeInsets.all(8), child: Text(file.id ?? '')),
-    //                 Padding(padding: EdgeInsets.all(8), child: Text(file.phoneNumber ?? '')),
-    //                 Padding(padding: EdgeInsets.all(8), child: Text(file.name ?? '')),
-    //                 Padding(padding: EdgeInsets.all(8), child: Text(file.platform ?? '')),
-    //                 Padding(padding: EdgeInsets.all(8), child: Text((file.isDeleted ?? false) ? 'true' : 'false')),
-    //                 Padding(padding: EdgeInsets.all(8), child: Text(file.startDate ?? '')),
-    //                 Padding(padding: EdgeInsets.all(8), child: Text(file.endDate ?? '')),
-    //               ],
-    //             );
-    //           })
-    //         ],
-    //       ),
-    //     ),
-    //   ],
-    // );
   }
   //#endregion
 
@@ -186,6 +145,7 @@ class _TotalCGMScreenState extends State<TotalCGMScreen> {
   Future<void> _refresh() async {
     try {
       setState(() {
+        ToastService.show(context, 'Đang tải...', type: ToastType.info, duration: null,);
         _isLoading = true;
         _totalCGMFiles.clear();
       });
@@ -193,9 +153,11 @@ class _TotalCGMScreenState extends State<TotalCGMScreen> {
       setState(() {
         _isLoading = false;
         _totalCGMFiles = GoogleService.instance.totalCGMFiles;
+        ToastService.show(context, 'Tải xong ${_totalCGMFiles.length} file(s)', type: ToastType.success);
       });
     } catch (error, stackTrace) {
       print('Failed to refresh total cgm data: $error');
+      ToastService.show(context, 'Đã có lỗi xảy ra, vui lòng thử lại', type: ToastType.error);
       setState(() {
         _isLoading = false;
         _totalCGMFiles.clear();
@@ -218,21 +180,4 @@ class _TotalCGMScreenState extends State<TotalCGMScreen> {
     }).toList();
   }
   //#endregion
-}
-
-class _Cell extends StatelessWidget {
-  final String text;
-  final bool isHeader;
-  const _Cell(this.text, {this.isHeader = false});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(8),
-      child: Text(
-        text,
-        style: TextStyle(fontWeight: isHeader ? FontWeight.w600 : FontWeight.normal),
-      ),
-    );
-  }
 }

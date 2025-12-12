@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:fmc_monitoring_dashboard/core/components/toast/toast_widget.dart';
+import 'package:fmc_monitoring_dashboard/core/services/toast_service.dart';
 import 'package:fmc_monitoring_dashboard/core/routing/router.dart';
 import 'package:fmc_monitoring_dashboard/core/services/google_drive_service.dart';
 import 'package:fmc_monitoring_dashboard/feature/home/home_screen.dart';
@@ -33,12 +33,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
         if (user == null) {
           print('Login failed');
-          ToastWidget.instance.showError('Đăng nhập thất bại');
+          ToastService.show(
+            context, 'Đăng nhập thất bại', type: ToastType.error,);
           return;
         } else {
           final authenticated = await GoogleDriveService.instance.authorizeUser(user);
           if(!authenticated){
-            // ToastWidget.instance.showError('Không xác thực được Google Drive');
+            ToastService.show(context, 'Không xác thực được Google Drive', type: ToastType.success);
             return;
           }
 
