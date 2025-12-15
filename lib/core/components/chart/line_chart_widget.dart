@@ -24,13 +24,18 @@ class LineChartWidget extends StatelessWidget {
   final double? maxX;
   final List<String> yTitle;
   final double maxY;
+  final Color lineData1Color = Colors.purpleAccent;
+  final Color lineData2Color = Colors.greenAccent;
 
   @override
   Widget build(BuildContext context) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(chartName, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),),
-        SizedBox(height: 4,),
+        Padding(
+          padding: const EdgeInsets.only(left: 14, bottom: 16.0),
+          child: Text(chartName, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),),
+        ),
         Expanded(
           child: LineChart(
               LineChartData(
@@ -68,6 +73,26 @@ class LineChartWidget extends StatelessWidget {
               )
           ),
         ),
+        Padding(
+          padding: const EdgeInsets.only(left: 14, top: 16.0),
+          child: RichText(
+            textAlign: TextAlign.start,
+              text: TextSpan(
+                text: 'android',
+                style: TextStyle(color: lineData1Color),
+                children: [
+                  TextSpan(
+                    text: ' - ',
+                    style: TextStyle(color: Colors.black),
+                  ),
+                  TextSpan(
+                    text: 'ios',
+                    style: TextStyle(color: lineData2Color),
+                  ),
+                ],
+              ),
+          ),
+        )
       ],
     );
   }
@@ -84,7 +109,7 @@ class LineChartWidget extends StatelessWidget {
   SideTitles get bottomTitles => SideTitles(
     showTitles: true,
     reservedSize: 22,
-    interval: 1,
+    // interval: 1,
     getTitlesWidget: bottomTitleWidgets,
   );
 
@@ -93,14 +118,9 @@ class LineChartWidget extends StatelessWidget {
       fontWeight: FontWeight.bold,
       fontSize: 14,
     );
-    String text = switch (value.toInt()) {
-      1 => '1m',
-      2 => '2m',
-      3 => '3m',
-      4 => '5m',
-      5 => '6m',
-      _ => '',
-    };
+
+    String text = value.toString();
+
     return SideTitleWidget(
       meta: meta,
       child: Text(
@@ -114,26 +134,24 @@ class LineChartWidget extends StatelessWidget {
   SideTitles leftTitles() => SideTitles(
     getTitlesWidget: leftTitleWidgets,
     showTitles: true,
-    interval: 10,
-    reservedSize: 40,
+    interval: 20,
+    reservedSize: 35,
   );
 
   List<LineChartBarData> get barsData {
-    final androidData = [];
+    final androidData = <FlSpot>[];
     for(int i = 0; i < lineData1.length; i++) {
       androidData.add(FlSpot(i+1, lineData1[i]));
     };
 
-    final iosData = [];
+    final iosData = <FlSpot>[];
     for(int i = 0; i < lineData1.length; i++) {
       iosData.add(FlSpot(i+1, lineData2[i]));
     };
 
     return [
-      _buildChartBar(spotList: [
-        // FlSpot(x, y)
-      ], color: Colors.pinkAccent),
-      _buildChartBar(spotList: [], color: Colors.green),
+      _buildChartBar(spotList: androidData, color: lineData1Color),
+      _buildChartBar(spotList: iosData, color: lineData2Color),
     ];
   }
 
@@ -143,9 +161,9 @@ class LineChartWidget extends StatelessWidget {
   }) => LineChartBarData(
     isCurved: true,
     color: color,
-    barWidth: 8,
+    barWidth: 4,
     isStrokeCapRound: true,
-    dotData: const FlDotData(show: false),
+    dotData: FlDotData(show: true),
     belowBarData: BarAreaData(show: false),
     spots: spotList
   );

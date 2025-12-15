@@ -48,11 +48,11 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(24.0),
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 8),
       child: Column(
         children: [
           SizedBox(
-            height: 250,
+            height: 350,
             // width: 100,
             child: _buildTotalCGM()
           )

@@ -80,6 +80,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _onLoginSuccess() async {
     ToastService.show(context, 'Đang tải...', type: ToastType.info, duration: null,);
     await AnalyticService.instance.fetchDB();
+    ToastService.hide();
     context.navigateTo(AppNavigationWidget(), replace: true);
   }
   //#endregion
