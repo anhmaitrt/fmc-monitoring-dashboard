@@ -41,7 +41,7 @@ class _LoginScreenState extends State<LoginScreen> {
         } else {
           final authenticated = await GoogleDriveService.instance.authorizeUser(user);
           if(!authenticated){
-            ToastService.show(context, 'Không xác thực được Google Drive', type: ToastType.success);
+            ToastService.show(context, 'Không xác thực được Google Drive', type: ToastType.error);
             return;
           }
 

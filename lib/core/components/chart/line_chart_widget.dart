@@ -33,8 +33,8 @@ class LineChartWidget extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(left: 14, bottom: 16.0),
-          child: Text(chartName, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),),
+          padding: const EdgeInsets.only(left: 10, bottom: 16.0),
+          child: Text(chartName, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),),
         ),
         Expanded(
           child: LineChart(
@@ -74,7 +74,7 @@ class LineChartWidget extends StatelessWidget {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.only(left: 14, top: 16.0),
+          padding: const EdgeInsets.only(left: 18, top: 16.0),
           child: RichText(
             textAlign: TextAlign.start,
               text: TextSpan(
