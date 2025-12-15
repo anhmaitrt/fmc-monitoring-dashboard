@@ -40,18 +40,55 @@ class TotalCgmFile {
 }
 
 extension EListListTotalCgmFile on List<List<TotalCgmFile>> {
-  // List<List<TotalCgmFile>> fromRawFiles(List<File> rawFiles) {
-  //
-  // }
-  // int countAndroid() {
-  //
-  // }
+  List<double> splitByPlatform(String platform) {
+    return map((l) => l.countPlatform(platform).toDouble()).toList();
+  }
+
+  double? get maxX {
+    return 31;
+    // final totalIos = map((f) => f.countPlatform('ios').toDouble()).toList();
+    // final totalAndroid = map((f) => f.countPlatform('android').toDouble()).toList();
+    // final nums = [...totalIos, ...totalAndroid];
+    // return nums.reduce((a, b) => a > b ? a : b);
+  }
+
+  double get maxY {
+    final totalIos = map((f) => f.countPlatform('ios').toDouble()).toList();
+    final totalAndroid = map((f) => f.countPlatform('android').toDouble()).toList();
+    final nums = [...totalIos, ...totalAndroid];
+    if(nums.isEmpty) return -1;
+    return nums.reduce((a, b) => a > b ? a : b);
+  }
+
+  List<String> toDateList() {
+    return map((f) => _fmt(parseDdMmYyFilename(f.firstOrNull?.fileName ?? "")!)).toList();
+  }
+
+  DateTime? parseDdMmYyFilename(String fileName) {
+    final base = fileName.toLowerCase().endsWith('.json')
+        ? fileName.substring(0, fileName.length - 5)
+        : fileName;
+
+    if (base.length != 6) return null; // ddMMyy
+
+    final dd = int.tryParse(base.substring(0, 2));
+    final mm = int.tryParse(base.substring(2, 4));
+    final yy = int.tryParse(base.substring(4, 6));
+    if (dd == null || mm == null || yy == null) return null;
+
+    // choose a century rule (adjust if needed)
+    final year = (yy >= 70) ? 1900 + yy : 2000 + yy;
+
+    // basic validation
+    if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return null;
+
+    return DateTime(year, mm, dd);
+  }
+  String _fmt(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}';
 }
 
 extension EListTotalCgmFile on List<TotalCgmFile> {
-  // List<List<TotalCgmFile>> fromRawFiles(List<File> rawFiles) {
-  //
-  // }
   int countPlatform(String platform) {
     var count = 0;
     forEach((d) {

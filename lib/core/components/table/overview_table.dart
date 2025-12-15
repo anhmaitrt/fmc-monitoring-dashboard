@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 
-import '../utils/app_size.dart';
+import '../../utils/app_size.dart';
 
 class OverviewTable extends StatelessWidget {
   const OverviewTable({super.key});

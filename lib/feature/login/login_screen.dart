@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:fmc_monitoring_dashboard/core/services/analytic_service.dart';
 import 'package:fmc_monitoring_dashboard/core/services/toast_service.dart';
 import 'package:fmc_monitoring_dashboard/core/routing/router.dart';
 import 'package:fmc_monitoring_dashboard/core/services/google_drive_service.dart';
+import 'package:fmc_monitoring_dashboard/feature/app_navigation_widget.dart';
 import 'package:fmc_monitoring_dashboard/feature/home/home_screen.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:google_sign_in_web/web_only.dart' as web;
@@ -43,8 +45,7 @@ class _LoginScreenState extends State<LoginScreen> {
             return;
           }
 
-          // ToastWidget.instance.showSuccess('Welcome ${user.displayName}');
-          context.navigateTo(TotalCGMScreen(), replace: true);
+          _onLoginSuccess();
         }
       });
     });
@@ -52,7 +53,7 @@ class _LoginScreenState extends State<LoginScreen> {
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) async {
       if (await GoogleService.instance.signIn() != null) {
         print('Log in to previous session');
-        context.navigateTo(TotalCGMScreen(), replace: true);
+        _onLoginSuccess();
       }
     },);
   }
@@ -74,4 +75,12 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
+
+  //#region ACTION
+  Future<void> _onLoginSuccess() async {
+    ToastService.show(context, 'Đang tải...', type: ToastType.info, duration: null,);
+    await AnalyticService.instance.fetchDB();
+    context.navigateTo(AppNavigationWidget(), replace: true);
+  }
+  //#endregion
 }
