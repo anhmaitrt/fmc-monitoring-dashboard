@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fmc_monitoring_dashboard/core/components/table/cell_widget.dart';
 import 'package:fmc_monitoring_dashboard/core/services/analytic_service.dart';
-import 'package:fmc_monitoring_dashboard/core/utils/extension/list_extension.dart';
 import 'package:fmc_monitoring_dashboard/model/user_cgm_file.dart';
 
 import '../../core/services/toast_service.dart';
@@ -15,18 +14,9 @@ class DataScreen extends StatefulWidget {
 }
 
 class _DataScreenState extends State<DataScreen> {
-  // List<List<TotalCgmFile>> _totalCGMFiles = List.empty(growable: true);
   bool _isLoading = false;
   final _searchCtrl = TextEditingController();
   String _query = '';
-
-  @override
-  void initState() {
-    super.initState();
-    // WidgetsBinding.instance.addPostFrameCallback((_) async {
-    //   _refresh();
-    // });
-  }
 
   @override
   void dispose() {
@@ -104,7 +94,10 @@ class _DataScreenState extends State<DataScreen> {
     return Table(
       border: TableBorder.all(color: Colors.black),
       columnWidths: {
-        0: FlexColumnWidth(2),
+        0: FlexColumnWidth(1),
+        1: FlexColumnWidth(0.5),
+        2: FlexColumnWidth(0.5),
+        3: FlexColumnWidth(0.5),
       },
       children: [
         TableRow(
@@ -123,8 +116,6 @@ class _DataScreenState extends State<DataScreen> {
             CellWidget(text: 'Ngày Bắt Đầu-Kết Thúc',
               enableCopyOnTap: false,),
             CellWidget(text: 'Khoảng chậm',
-              enableCopyOnTap: false,),
-            CellWidget(text: 'Ngày Bắt Đầu-Kết Thúc',
               enableCopyOnTap: false,),
           ],
         ),
@@ -151,11 +142,7 @@ class _DataScreenState extends State<DataScreen> {
                 enableCopyOnTap: false,
               ),
               CellWidget(
-                text: file.syncGapCount == 0 ? 'Ổn định' : '${file.syncGapCount} lần chậm:\n${file.syncGaps.inString()}',
-                enableCopyOnTap: false,
-              ),
-              CellWidget(
-                text: file.syncGapCount.toString(),
+                text: file.summarizeSyncGaps(),
                 enableCopyOnTap: false,
               ),
             ],

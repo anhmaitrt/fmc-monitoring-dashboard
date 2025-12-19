@@ -7,6 +7,8 @@ import 'package:fmc_monitoring_dashboard/model/sync_gap.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:json_annotation/json_annotation.dart';
 
+import '../core/utils/extension/list_extension.dart';
+
 part 'user_cgm_file.g.dart';
 
 // {
@@ -144,7 +146,34 @@ class UserCGMFile {
     return startedAt!.getGap(dateTime!.formatHHMMDDMMYYYY);
   }
 
+  String summarizeSyncGaps() {
+    if(syncGaps.isEmpty) return 'Ổn định';
 
+    List<String> result = List.empty(growable: true);
+    var syncGapInMinute = 0;
+    int longestGapIndex = 0;
+    int longestGap = syncGaps.first.duration.inMinutes;
+    int totalGap = 0;
+    for(int i = 0; i < syncGaps.length; i++) {
+      syncGapInMinute = syncGaps[i].duration.inMinutes;
+      totalGap += syncGapInMinute;
+      if(longestGap < syncGapInMinute) {
+        longestGapIndex = i;
+        longestGap = syncGapInMinute;
+      }
+
+      result.add('${syncGaps[i]} ($syncGapInMinute phút)');
+    }
+
+    result[longestGapIndex] += ' (*)';
+    return '- Tổng $totalGap phút (${(totalGap/1440*100).toStringAsFixed(2)}%)' //24 hour
+        '\n- Gap dài nhất: $longestGap phút (${(longestGap/60).toStringAsFixed(2)} giờ)'
+        '\n- $syncGapCount khoảng chậm:'
+        '\n${result.join('\n')}'
+        // '\n${syncGaps.inString()}'
+    ;
+    return '${syncGaps.length} lần chậm:\n${syncGaps.inString()}';
+  }
 }
 
 extension EListListTotalCgmFile on List<List<UserCGMFile>> {
