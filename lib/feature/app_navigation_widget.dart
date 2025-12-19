@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:fmc_monitoring_dashboard/feature/file/total_cgm_screen.dart';
+import 'package:fmc_monitoring_dashboard/feature/file/data_screen.dart';
 import 'package:fmc_monitoring_dashboard/feature/home/home_screen.dart';
 import 'package:sidebarx/sidebarx.dart';
 
@@ -17,7 +17,7 @@ class _AppNavigationWidgetState extends State<AppNavigationWidget> {
 
   final pages = [
     HomeScreen(),
-    TotalCGMScreen()
+    DataScreen()
   ];
 
   @override

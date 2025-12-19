@@ -1,18 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:fmc_monitoring_dashboard/core/components/table/cell_widget.dart';
 import 'package:fmc_monitoring_dashboard/core/services/analytic_service.dart';
-import 'package:fmc_monitoring_dashboard/model/total_cgm_file.dart';
+import 'package:fmc_monitoring_dashboard/core/utils/extension/list_extension.dart';
+import 'package:fmc_monitoring_dashboard/model/user_cgm_file.dart';
 
 import '../../core/services/toast_service.dart';
+import '../../core/style/app_colors.dart';
 
-class TotalCGMScreen extends StatefulWidget {
-  const TotalCGMScreen({super.key});
+class DataScreen extends StatefulWidget {
+  const DataScreen({super.key});
 
   @override
-  State<TotalCGMScreen> createState() => _TotalCGMScreenState();
+  State<DataScreen> createState() => _DataScreenState();
 }
 
-class _TotalCGMScreenState extends State<TotalCGMScreen> {
+class _DataScreenState extends State<DataScreen> {
   // List<List<TotalCgmFile>> _totalCGMFiles = List.empty(growable: true);
   bool _isLoading = false;
   final _searchCtrl = TextEditingController();
@@ -34,7 +36,7 @@ class _TotalCGMScreenState extends State<TotalCGMScreen> {
 
   @override
   Widget build(BuildContext context) {
-    print('Load total ${AnalyticService.instance.totalCGMFiles.length} files for total cgm data');
+    print('Load total ${AnalyticService.instance.dataFiles.length} files for total cgm data');
     return Scaffold(
       appBar: AppBar(
         title: const Text('Tổng khách dùng CGM'),
@@ -62,7 +64,7 @@ class _TotalCGMScreenState extends State<TotalCGMScreen> {
               padding: EdgeInsets.all(16),
               child: Column(
                 children: [
-                  ...AnalyticService.instance.totalCGMFiles.map((files) => _buildTable(_filterRows(files)))
+                  ...AnalyticService.instance.dataFiles.map((files) => _buildTable(_filterRows(files)))
                 ],
               ),
             ),
@@ -98,7 +100,7 @@ class _TotalCGMScreenState extends State<TotalCGMScreen> {
   }
 
 
-  Widget _buildTable(List<TotalCgmFile> files) {
+  Widget _buildTable(List<UserCGMFile> files) {
     return Table(
       border: TableBorder.all(color: Colors.black),
       columnWidths: {
@@ -109,7 +111,7 @@ class _TotalCGMScreenState extends State<TotalCGMScreen> {
           decoration: BoxDecoration(color: Colors.grey[300]),
           children: [
             CellWidget(
-              text: "Id (${files.firstOrNull?.fileName})",
+              text: "Id (${files.firstOrNull?.dateTime})",
               enableCopyOnTap: false,
             ),
             CellWidget(text: "Số Điện Thoại",
@@ -118,41 +120,42 @@ class _TotalCGMScreenState extends State<TotalCGMScreen> {
               enableCopyOnTap: false,),
             CellWidget(text: "Platform\n(${files.countPlatform('android')} android, ${files.countPlatform('ios')} ios)",
               enableCopyOnTap: false,),
-            CellWidget(text: "Đã xoá",
+            CellWidget(text: 'Ngày Bắt Đầu-Kết Thúc',
               enableCopyOnTap: false,),
-            CellWidget(text: "Ngày Bắt Đầu",
+            CellWidget(text: 'Khoảng chậm',
               enableCopyOnTap: false,),
-            CellWidget(text: "Ngày Kết Thúc",
+            CellWidget(text: 'Ngày Bắt Đầu-Kết Thúc',
               enableCopyOnTap: false,),
           ],
         ),
         // Data rows
         ...files.map((file) {
           return TableRow(
+            decoration: (file.isDeleted ?? false) ? BoxDecoration(color: AppColors.disableText) : null,
             children: [
               CellWidget(
-                text: file.id ?? '',
+                text: file.userId ?? '',
               ),
               CellWidget(
                 text: file.phoneNumber ?? '',
               ),
               CellWidget(
-                text: file.name ?? '',
+                text: file.fullName ?? '',
               ),
               CellWidget(
                 text: file.platform ?? '',
                 enableCopyOnTap: false,
               ),
               CellWidget(
-                text: (file.isDeleted ?? false) ? 'true' : 'false',
+                text: 'Đã dùng ${file.sessionDay.inDays} ngày\n${file.startedAt} - ${file.stoppedAt}',
                 enableCopyOnTap: false,
               ),
               CellWidget(
-                text: file.startDate ?? '',
+                text: file.syncGapCount == 0 ? 'Ổn định' : '${file.syncGapCount} lần chậm:\n${file.syncGaps.inString()}',
                 enableCopyOnTap: false,
               ),
               CellWidget(
-                text: file.endDate ?? '',
+                text: file.syncGapCount.toString(),
                 enableCopyOnTap: false,
               ),
             ],
@@ -174,7 +177,7 @@ class _TotalCGMScreenState extends State<TotalCGMScreen> {
       await AnalyticService.instance.fetchDB();
       setState(() {
         _isLoading = false;
-        ToastService.show(context, 'Tải xong ${AnalyticService.instance.totalCGMFiles.length} file(s)', type: ToastType.success);
+        ToastService.show(context, 'Tải xong ${AnalyticService.instance.dataFiles.length} file(s)', type: ToastType.success);
       });
     } catch (error, stackTrace) {
       print('Failed to refresh total cgm data: $error');
@@ -185,18 +188,18 @@ class _TotalCGMScreenState extends State<TotalCGMScreen> {
     }
   }
 
-  List<TotalCgmFile> _filterRows(List<TotalCgmFile> files) {
+  List<UserCGMFile> _filterRows(List<UserCGMFile> files) {
     if (_query.isEmpty) return files;
 
     bool match(String? s) => (s ?? '').toLowerCase().contains(_query);
 
     return files.where((f) {
-      return match(f.id) ||
+      return match(f.userId) ||
           match(f.phoneNumber) ||
-          match(f.name) ||
+          match(f.fullName) ||
           match(f.platform) ||
-          match(f.startDate) ||
-          match(f.endDate);
+          match(f.startedAt) ||
+          match(f.stoppedAt);
     }).toList();
   }
   //#endregion

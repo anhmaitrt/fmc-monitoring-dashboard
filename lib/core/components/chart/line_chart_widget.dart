@@ -1,7 +1,5 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-// import 'package:fmc_monitoring_dashboard/core/services/analytic_service.dart';
-import 'package:fmc_monitoring_dashboard/model/total_cgm_file.dart';
 
 import '../../style/app_colors.dart';
 
@@ -109,7 +107,7 @@ class LineChartWidget extends StatelessWidget {
   SideTitles get bottomTitles => SideTitles(
     showTitles: true,
     reservedSize: 22,
-    // interval: 1,
+    interval: 1,
     getTitlesWidget: bottomTitleWidgets,
   );
 

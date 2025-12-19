@@ -18,18 +18,28 @@ class CellWidget extends StatelessWidget {
   }
 
   Widget _buildHighlight(BuildContext context) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: InkWell(
-        onTap: () => onTap(context),
-        hoverColor: Colors.blue.withOpacity(0.08),
-        child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: Text(text),
+    if(enableCopyOnTap) {
+      return MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: InkWell(
+          onTap: () => onTap(context),
+          hoverColor: Colors.blue.withOpacity(0.08),
+          child: _buildContent(),
         ),
-      ),
+      );
+    }
+
+    return _buildContent();
+  }
+
+  //#region UI
+  Widget _buildContent() {
+    return Padding(
+      padding: const EdgeInsets.all(8),
+      child: enableCopyOnTap ? Text(text) : SelectableText(text),
     );
   }
+  //#endregion
 
   //#region ACTION
   Future<void> onTap(BuildContext context) async {

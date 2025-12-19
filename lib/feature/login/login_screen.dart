@@ -9,7 +9,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:google_sign_in_web/web_only.dart' as web;
 
 import '../../core/services/google_service.dart';
-import '../file/total_cgm_screen.dart';
+import '../file/data_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
