@@ -37,14 +37,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
   //#region UI
   Widget _buildTotalCGM() {
+    final data = AnalyticService.instance.dataFiles.reversed.toList();
     return LineChartWidget(
       chartName: 'Khách dùng CGM',
-      maxX: AnalyticService.instance.dataFiles.maxX,
-      maxY: AnalyticService.instance.dataFiles.maxY,
-      xTitle: AnalyticService.instance.dataFiles.toDateList(),
+      maxX: data.maxX,
+      maxY: data.maxY,
+      xTitle: data.toDateList(),
       yTitle: [],
-      lineData1: AnalyticService.instance.dataFiles.splitByPlatform('android'),
-      lineData2: AnalyticService.instance.dataFiles.splitByPlatform('ios'),
+      lineData1: data.splitByPlatform('android'),
+      lineData2: data.splitByPlatform('ios'),
     );
   }
   //#endregion

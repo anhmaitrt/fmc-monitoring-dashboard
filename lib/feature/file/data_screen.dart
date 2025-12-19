@@ -5,6 +5,7 @@ import 'package:fmc_monitoring_dashboard/model/user_cgm_file.dart';
 
 import '../../core/services/toast_service.dart';
 import '../../core/style/app_colors.dart';
+import '../../core/utils/extension/date_extension.dart';
 
 class DataScreen extends StatefulWidget {
   const DataScreen({super.key});
@@ -89,68 +90,95 @@ class _DataScreenState extends State<DataScreen> {
     );
   }
 
-
   Widget _buildTable(List<UserCGMFile> files) {
-    return Table(
-      border: TableBorder.all(color: Colors.black),
-      columnWidths: {
-        0: FlexColumnWidth(1),
-        1: FlexColumnWidth(0.5),
-        2: FlexColumnWidth(0.5),
-        3: FlexColumnWidth(0.5),
-      },
+    return files.isEmpty ? const Center(child: Text('Không có dữ liệu')) : ExpansionTile(
+      title: Text('${files.firstOrNull?.dateTime?.formatddMMyyyy}: ${files.length} khách'),
       children: [
-        TableRow(
-          decoration: BoxDecoration(color: Colors.grey[300]),
+        Table(
+          border: TableBorder.all(color: Colors.black),
+          columnWidths: {
+            0: FlexColumnWidth(1),
+            1: FlexColumnWidth(0.5),
+            2: FlexColumnWidth(0.5),
+            3: FlexColumnWidth(0.5),
+          },
           children: [
-            CellWidget(
-              text: "Id (${files.firstOrNull?.dateTime})",
-              enableCopyOnTap: false,
+            TableRow(
+              decoration: BoxDecoration(color: Colors.grey[300]),
+              children: [
+                CellWidget(
+                  text: "Id (${files.firstOrNull?.dateTime})",
+                  enableCopyOnTap: false,
+                ),
+                CellWidget(text: "Số Điện Thoại",
+                  enableCopyOnTap: false,),
+                CellWidget(text: "Họ Tên",
+                  enableCopyOnTap: false,),
+                CellWidget(text: "Platform\n(${files.countPlatform('android')} android, ${files.countPlatform('ios')} ios)",
+                  enableCopyOnTap: false,),
+                CellWidget(text: 'Ngày Bắt Đầu-Kết Thúc',
+                  enableCopyOnTap: false,),
+                CellWidget(text: 'Khoảng chậm',
+                  enableCopyOnTap: false,),
+              ],
             ),
-            CellWidget(text: "Số Điện Thoại",
-              enableCopyOnTap: false,),
-            CellWidget(text: "Họ Tên",
-              enableCopyOnTap: false,),
-            CellWidget(text: "Platform\n(${files.countPlatform('android')} android, ${files.countPlatform('ios')} ios)",
-              enableCopyOnTap: false,),
-            CellWidget(text: 'Ngày Bắt Đầu-Kết Thúc',
-              enableCopyOnTap: false,),
-            CellWidget(text: 'Khoảng chậm',
-              enableCopyOnTap: false,),
+            // Data rows
+            ...files.map((file) {
+              return TableRow(
+                decoration: (file.isDeleted ?? false) ? BoxDecoration(color: AppColors.disableText) : null,
+                children: [
+                  CellWidget(
+                    text: file.userId ?? '',
+                  ),
+                  CellWidget(
+                    text: file.phoneNumber ?? '',
+                  ),
+                  CellWidget(
+                    text: file.fullName ?? '',
+                  ),
+                  CellWidget(
+                    text: file.platform ?? '',
+                    enableCopyOnTap: false,
+                  ),
+                  CellWidget(
+                    text: 'Đã dùng ${file.sessionDay.inDays} ngày\n${file.startedAt} - ${file.stoppedAt}',
+                    enableCopyOnTap: false,
+                  ),
+                  CellWidget(
+                    text: file.summarizeSyncGaps(),
+                    enableCopyOnTap: false,
+                  ),
+                ],
+              );
+            })
           ],
-        ),
-        // Data rows
-        ...files.map((file) {
-          return TableRow(
-            decoration: (file.isDeleted ?? false) ? BoxDecoration(color: AppColors.disableText) : null,
-            children: [
-              CellWidget(
-                text: file.userId ?? '',
-              ),
-              CellWidget(
-                text: file.phoneNumber ?? '',
-              ),
-              CellWidget(
-                text: file.fullName ?? '',
-              ),
-              CellWidget(
-                text: file.platform ?? '',
-                enableCopyOnTap: false,
-              ),
-              CellWidget(
-                text: 'Đã dùng ${file.sessionDay.inDays} ngày\n${file.startedAt} - ${file.stoppedAt}',
-                enableCopyOnTap: false,
-              ),
-              CellWidget(
-                text: file.summarizeSyncGaps(),
-                enableCopyOnTap: false,
-              ),
-            ],
-          );
-        })
+        )
       ],
     );
   }
+
+  // Widget _buildPaginatedDataTable() {
+  //   return PaginatedDataTable(
+  //     header: const Text('Tổng khách dùng CGM'),
+  //     rowsPerPage: 50,
+  //     availableRowsPerPage: const [10, 25, 50, 100],
+  //     onRowsPerPageChanged: (v) {
+  //       if (v == null) return;
+  //       // setState(() => _rowsPerPage = v);
+  //     },
+  //     columns: const [
+  //       DataColumn(label: Text('User ID')),
+  //       DataColumn(label: Text('Số Điện Thoại')),
+  //       DataColumn(label: Text('Họ Tên')),
+  //       DataColumn(label: Text('Platform')),
+  //       DataColumn(label: Text('Đã Xóa')),
+  //       DataColumn(label: Text('Bắt đầu')),
+  //       DataColumn(label: Text('Kết thúc')),
+  //       DataColumn(label: Text('Sync gaps')),
+  //     ],
+  //     source: source,
+  //   );
+  // }
   //#endregion
 
   //#region ACTION

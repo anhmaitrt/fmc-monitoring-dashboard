@@ -21,12 +21,6 @@ class _AppNavigationWidgetState extends State<AppNavigationWidget> {
   ];
 
   @override
-  void initState() {
-    super.initState();
-
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Row(

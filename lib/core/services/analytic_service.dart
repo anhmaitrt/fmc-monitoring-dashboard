@@ -32,46 +32,13 @@ class AnalyticService {
         }
     }
 
-    // Future<void> _fetchData() async {
-    //     try {
-    //         dataFiles.clear();
-    //         var rawFiles = await GoogleDriveService.instance.readFolder(DATA_FOLDER);
-    //
-    //         for(int i = 0; i < rawFiles.length; i++) {
-    //             var content = await GoogleDriveService.instance.getFileContent(rawFiles[i]);
-    //
-    //             final convertedModels = jsonDecode(content).map<UserCGMFile>((data) {
-    //                 var model = UserCGMFile(
-    //                     fileName: rawFiles[i].name,
-    //                     userId: data[0],
-    //                     phoneNumber: data[1],
-    //                     fullName: data[2],
-    //                     platform: data[3],
-    //                     isDeleted: data[4],
-    //                     startedAt: data[5],
-    //                     stoppedAt: data[6],
-    //                 );
-    //                 // print('Parse to model: $model');
-    //                 return model;
-    //             }).toList();
-    //
-    //             print('Converted ${convertedModels.length} models for file ${rawFiles[i].name}');
-    //             dataFiles.add(convertedModels);
-    //         }
-    //         print('Fetched ${dataFiles.length} files for total cgm data');
-    //     } catch (error, stackTrace) {
-    //         print("Failed to fetch total cgm data: $error");
-    //     }
-    // }
-
     Future<void> _fetchData() async {
         try {
             dataFiles.clear();
 
-            final rawFiles =
-            await GoogleDriveService.instance.readFolder(DATA_FOLDER);
+            var rawFiles = await GoogleDriveService.instance.readFolder(DATA_FOLDER);
 
-            rawFiles.reversed;
+            // rawFiles = rawFiles.reversed.toList();
             for (final file in rawFiles) {
                 final content =
                 await GoogleDriveService.instance.getFileContent(file);
