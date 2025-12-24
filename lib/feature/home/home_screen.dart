@@ -73,13 +73,11 @@ class _HomeScreenState extends State<HomeScreen> {
       List<List<UserCGMFile>> androidUsers,
       List<List<UserCGMFile>> iosUser,
   ) {
-    // final androidLongestGapTimeList = androidUsers.map((f) => f.longestGapTimeInHour).toList();
-    // final iosLongestGapTimeList = iosUser.map((f) => f.longestGapTimeInHour).toList();
     final androidPercentageInterruptionList = androidUsers.map((f) => f.percentageInterruption).toList();
     final iosPercentageInterruptionList = iosUser.map((f) => f.percentageInterruption).toList();
 
-    print('android user: ${androidUsers.length} - $androidPercentageInterruptionList'
-        '\nios user: ${iosUser.length} - $iosPercentageInterruptionList');
+    // print('android user: ${androidUsers.length} - $androidPercentageInterruptionList'
+    //     '\nios user: ${iosUser.length} - $iosPercentageInterruptionList');
     return LineChartWidget(
       chartName: 'Chậm đồng bộ (%)',
       maxX: data.maxX,
