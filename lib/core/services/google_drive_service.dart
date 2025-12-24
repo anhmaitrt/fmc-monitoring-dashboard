@@ -55,7 +55,7 @@ class GoogleDriveService {
         );
         if (response is! drive.Media) throw Exception("invalid response");
         var content = await utf8.decodeStream(response.stream);
-        print('File ${file.name} content: $content');
+        // print('File ${file.name} content: $content');
         return content;
     }
 }

@@ -114,7 +114,7 @@ class _DataScreenState extends State<DataScreen> {
                   enableCopyOnTap: false,),
                 CellWidget(text: "Họ Tên",
                   enableCopyOnTap: false,),
-                CellWidget(text: "Platform\n(${files.countPlatform('android')} android, ${files.countPlatform('ios')} ios)",
+                CellWidget(text: "Platform\n(${files.countByPlatform('android')} android, ${files.countByPlatform('ios')} ios)",
                   enableCopyOnTap: false,),
                 CellWidget(text: 'Ngày Bắt Đầu-Kết Thúc',
                   enableCopyOnTap: false,),
@@ -141,7 +141,7 @@ class _DataScreenState extends State<DataScreen> {
                     enableCopyOnTap: false,
                   ),
                   CellWidget(
-                    text: 'Đã dùng ${file.sessionDay.inDays} ngày\n${file.startedAt} - ${file.stoppedAt}',
+                    text: 'Đã dùng ${file.currentSessionDuration.inDays} ngày\n${file.startedAt} - ${file.stoppedAt}',
                     enableCopyOnTap: false,
                   ),
                   CellWidget(

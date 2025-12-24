@@ -11,19 +11,18 @@ class LineChartWidget extends StatelessWidget {
     required this.maxX,
     required this.yTitle,
     required this.maxY,
-    required this.lineData1,
-    required this.lineData2,
+    required this.lineDataList,
+    required this.lineTitleList,
   });
 
   final String chartName;
-  final List<double> lineData1;
-  final List<double> lineData2;
+  final List<List<double>> lineDataList;
+  final List<String> lineTitleList;
   final List<String> xTitle;
   final double? maxX;
   final List<String> yTitle;
   final double maxY;
-  final Color lineData1Color = Colors.purpleAccent;
-  final Color lineData2Color = Colors.greenAccent;
+  final List<Color> lineColors = Colors.primaries;
 
   @override
   Widget build(BuildContext context) {
@@ -76,18 +75,20 @@ class LineChartWidget extends StatelessWidget {
           child: RichText(
             textAlign: TextAlign.start,
               text: TextSpan(
-                text: 'android',
-                style: TextStyle(color: lineData1Color),
-                children: [
-                  TextSpan(
-                    text: ' - ',
-                    style: TextStyle(color: Colors.black),
-                  ),
-                  TextSpan(
-                    text: 'ios',
-                    style: TextStyle(color: lineData2Color),
-                  ),
-                ],
+                text: lineTitleList[0],
+                style: TextStyle(color: lineColors[0]),
+                children: lineTitleList.skip(1).map((l) {
+                  return TextSpan(
+                      text: ' - ',
+                      style: TextStyle(color: Colors.black),
+                      children: [
+                        TextSpan(
+                          text: l,
+                          style: TextStyle(color: lineColors[1]),
+                        ),
+                      ]
+                  );
+                }).toList()
               ),
           ),
         )
@@ -132,25 +133,20 @@ class LineChartWidget extends StatelessWidget {
   SideTitles leftTitles() => SideTitles(
     getTitlesWidget: leftTitleWidgets,
     showTitles: true,
-    interval: 20,
-    reservedSize: 35,
+    interval: (maxY/10).ceilToDouble()/* 20*/,
+    reservedSize: 45,
   );
 
   List<LineChartBarData> get barsData {
-    final androidData = <FlSpot>[];
-    for(int i = 0; i < lineData1.length; i++) {
-      androidData.add(FlSpot(i+1, lineData1[i]));
-    };
-
-    final iosData = <FlSpot>[];
-    for(int i = 0; i < lineData1.length; i++) {
-      iosData.add(FlSpot(i+1, lineData2[i]));
-    };
-
-    return [
-      _buildChartBar(spotList: androidData, color: lineData1Color),
-      _buildChartBar(spotList: iosData, color: lineData2Color),
-    ];
+    List<LineChartBarData> lineBarDataList = <LineChartBarData>[];
+    for(int i = 0; i < lineDataList.length; i++) {
+      final spotData = <FlSpot>[];
+      for(int j = 0; j < lineDataList[i].length; j++) {
+        spotData.add(FlSpot(j.toDouble(), lineDataList[i][j]));
+      }
+      lineBarDataList.add(_buildChartBar(spotList: spotData, color: lineColors[i]));
+    }
+    return lineBarDataList;
   }
 
   LineChartBarData _buildChartBar({
@@ -168,13 +164,11 @@ class LineChartWidget extends StatelessWidget {
 
   Widget bottomTitleWidgets(double value, TitleMeta meta) {
     final i = value.toInt();
-    // final sorted = [..._daily]..sort((a, b) => a.date.compareTo(b.date));
-    // final sorted = ;
 
     if (i < 0 || i >= xTitle.length) return const SizedBox.shrink();
 
-    final showEvery = (xTitle.length <= 7) ? 1 : (xTitle.length <= 14) ? 2 : 3;
-    if (i % showEvery != 0 && i != xTitle.length - 1) return const SizedBox.shrink();
+    // final showEvery = (xTitle.length <= 7) ? 1 : (xTitle.length <= 14) ? 2 : 3;
+    // if (i % showEvery != 0 && i != xTitle.length - 1) return const SizedBox.shrink();
 
     return SideTitleWidget(
       meta: meta,

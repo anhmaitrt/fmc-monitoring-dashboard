@@ -1,7 +1,10 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:fmc_monitoring_dashboard/core/components/chart/line_chart_widget.dart';
 import 'package:fmc_monitoring_dashboard/core/services/analytic_service.dart';
 import 'package:fmc_monitoring_dashboard/core/services/toast_service.dart';
+import 'package:fmc_monitoring_dashboard/core/utils/app_size.dart';
 import 'package:fmc_monitoring_dashboard/model/user_cgm_file.dart';
 
 
@@ -15,18 +18,27 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
+    final data = AnalyticService.instance.dataFiles.reversed.toList();
+    final androidUsers = data.splitByPlatform('android');
+    final iosUsers = data.splitByPlatform('ios');
+
     return SizedBox(
       height: double.infinity,
       child: RefreshIndicator(
         onRefresh: () => fetchData(),
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 8),
+          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 24),
           child: Column(
             mainAxisSize: MainAxisSize.max,
             children: [
               SizedBox(
                 height: 350,
-                child: _buildTotalCGM()
+                child: _buildTotalCGMChart(data, androidUsers, iosUsers)
+              ),
+              Container(
+                height: 350,
+                margin: EdgeInsets.only(top: 24),
+                child: _buildInterruptionChart(data, androidUsers, iosUsers)
               )
             ],
           ),
@@ -36,16 +48,40 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   //#region UI
-  Widget _buildTotalCGM() {
-    final data = AnalyticService.instance.dataFiles.reversed.toList();
+  Widget _buildTotalCGMChart(
+      List<List<UserCGMFile>> data,
+      List<List<UserCGMFile>> androidUsers,
+      List<List<UserCGMFile>> iosUser,
+  ) {
     return LineChartWidget(
       chartName: 'Khách dùng CGM',
       maxX: data.maxX,
       maxY: data.maxY,
       xTitle: data.toDateList(),
       yTitle: [],
-      lineData1: data.splitByPlatform('android'),
-      lineData2: data.splitByPlatform('ios'),
+      lineDataList: [androidUsers.count(), iosUser.count()],
+      lineTitleList: ['android', 'ios'],
+    );
+  }
+
+  Widget _buildInterruptionChart(
+      List<List<UserCGMFile>> data,
+      List<List<UserCGMFile>> androidUsers,
+      List<List<UserCGMFile>> iosUser,
+  ) {
+    final androidLongestGapTimeList = androidUsers.map((f) => f.longestGapTimeInHour).toList();
+    final iosLongestGapTimeList = iosUser.map((f) => f.longestGapTimeInHour).toList();
+
+    print('android user: ${androidUsers.length} - $androidLongestGapTimeList'
+        '\nios user: ${iosUser.length} - $iosLongestGapTimeList');
+    return LineChartWidget(
+      chartName: 'Chậm đồng bộ (giờ)',
+      maxX: data.maxX,
+      maxY: [...androidLongestGapTimeList, ...iosLongestGapTimeList].reduce(max),
+      xTitle: data.toDateList(),
+      yTitle: [],
+      lineDataList: [androidLongestGapTimeList, iosLongestGapTimeList],
+      lineTitleList: ['android', 'ios'],
     );
   }
   //#endregion

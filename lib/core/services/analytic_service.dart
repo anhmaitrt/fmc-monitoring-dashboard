@@ -38,7 +38,6 @@ class AnalyticService {
 
             var rawFiles = await GoogleDriveService.instance.readFolder(DATA_FOLDER);
 
-            // rawFiles = rawFiles.reversed.toList();
             for (final file in rawFiles) {
                 final content =
                 await GoogleDriveService.instance.getFileContent(file);
@@ -74,7 +73,12 @@ class AnalyticService {
                 // Unknown format
                 throw Exception('Invalid JSON in ${file.name}: ${decoded.runtimeType}');
             }
-
+            dataFiles.sort((a, b) {
+                final da = a.firstOrNull!.dateTime;
+                final db = b.firstOrNull!.dateTime;
+                if (da == null || db == null) return 0;
+                return db.compareTo(da); // DESC
+            });
             print('Fetched ${dataFiles.length} files for CGM data');
         } catch (e, st) {
             print('Failed to fetch total cgm data: $e\n$st');

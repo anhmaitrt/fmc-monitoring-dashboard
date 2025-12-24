@@ -1,5 +1,6 @@
 // import 'package:copy_with_extension/copy_with_extension.dart';
 import 'dart:core';
+import 'dart:math';
 
 import 'package:fmc_monitoring_dashboard/core/utils/extension/date_extension.dart';
 import 'package:fmc_monitoring_dashboard/core/utils/extension/string_extension.dart';
@@ -10,35 +11,6 @@ import 'package:json_annotation/json_annotation.dart';
 import '../core/utils/extension/list_extension.dart';
 
 part 'user_cgm_file.g.dart';
-
-// {
-// "user_id": "c3a45865-4349-4090-b4a3-589ab726a26e",
-// "username": "+84904056886",
-// "full_name": "Trần Văn Sơn",
-// "device_type": "ios",
-// "is_delete": false,
-// "started_at": "22:07 06/12/2025",
-// "stopped_at": "22:07 20/12/2025",
-// "sync_gaps": [
-// [
-// "11:50 08/12/2025",
-// "12:45 08/12/2025"
-// ],
-// [
-// "16:14 08/12/2025",
-// "17:11 08/12/2025"
-// ],
-// [
-// "18:23 08/12/2025",
-// "18:40 08/12/2025"
-// ],
-// [
-// "19:38 08/12/2025",
-// "20:19 08/12/2025"
-// ]
-// ],
-// "sync_gap_count": 4
-// },
 
 @JsonSerializable(explicitToJson: true)
 class UserCGMFile {
@@ -138,7 +110,7 @@ class UserCGMFile {
     return DateTime(year, mm, dd);
   }
 
-  Duration get sessionDay {
+  Duration get currentSessionDuration {
     if(startedAt.isNullOrEmpty) {
       return Duration(minutes: -1);
     }
@@ -176,9 +148,70 @@ class UserCGMFile {
   }
 }
 
+extension EUserCGMFile on UserCGMFile {
+  double get totalGapTime {
+    int totalGapTime = 0;
+    for(int i = 0; i < syncGaps.length; i++) {
+      totalGapTime += syncGaps[i].duration.inMinutes;
+    }
+
+    return totalGapTime.toDouble();
+  }
+
+  double get longestGapTimeInMinute {
+    int syncGapInMinute = 0;
+    int longestGap = syncGaps.firstOrNull?.duration.inMinutes ?? 0;
+    for(int i = 0; i < syncGaps.length; i++) {
+      syncGapInMinute = syncGaps[i].duration.inMinutes;
+      if(longestGap < syncGapInMinute) {
+        longestGap = syncGapInMinute;
+      }
+    }
+
+    return longestGap.toDouble();
+  }
+
+  double get longestGapTimeInHour {
+    int syncGapInMinute = 0;
+    int longestGap = syncGaps.firstOrNull?.duration.inHours ?? 0;
+    for(int i = 0; i < syncGaps.length; i++) {
+      syncGapInMinute = syncGaps[i].duration.inHours;
+      if(longestGap < syncGapInMinute) {
+        longestGap = syncGapInMinute;
+      }
+    }
+
+    return longestGap.toDouble();
+  }
+}
+
+extension EListTotalCgmFile on List<UserCGMFile> {
+  int countByPlatform(String platform) {
+    var count = 0;
+    forEach((d) {
+      if(d.platform == platform) {
+        count++;
+      }
+    });
+    return count;
+  }
+
+  List<UserCGMFile> filterByPlatform(String platform) => where((d) => d.platform == platform).toList();
+
+  double get longestGapTimeInMinute => map((f) => f.longestGapTimeInMinute).toList().reduce(max);
+
+  double get longestGapTimeInHour => map((f) => f.longestGapTimeInHour).toList().reduce(max);
+}
+
 extension EListListTotalCgmFile on List<List<UserCGMFile>> {
-  List<double> splitByPlatform(String platform) {
-    return map((l) => l.countPlatform(platform).toDouble()).toList();
+  List<double> countByPlatform(String platform) => map((l) => l.countByPlatform(platform).toDouble()).toList();
+
+  List<List<UserCGMFile>> splitByPlatform(String platform) {
+    return map((l) => l.filterByPlatform(platform)).toList();
+  }
+
+  List<double> count() {
+    return map((l) => l.length.toDouble()).toList(growable: false);
   }
 
   double? get maxX {
@@ -190,15 +223,18 @@ extension EListListTotalCgmFile on List<List<UserCGMFile>> {
   }
 
   double get maxY {
-    final totalIos = map((f) => f.countPlatform('ios').toDouble()).toList();
-    final totalAndroid = map((f) => f.countPlatform('android').toDouble()).toList();
+    final totalIos = map((f) => f.countByPlatform('ios').toDouble()).toList();
+    final totalAndroid = map((f) => f.countByPlatform('android').toDouble()).toList();
     final nums = [...totalIos, ...totalAndroid];
     if(nums.isEmpty) return -1;
     return nums.reduce((a, b) => a > b ? a : b);
   }
 
   List<String> toDateList() {
-    return map((f) => _fmt(parseDdMmYyFilename(f.firstOrNull?.fileName ?? "")!)).toList();
+    return map((f) {
+      final d = parseDdMmYyFilename(f.firstOrNull?.fileName ?? "")!;
+      return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}';
+    }).toList();
   }
 
   DateTime? parseDdMmYyFilename(String fileName) {
@@ -220,19 +256,5 @@ extension EListListTotalCgmFile on List<List<UserCGMFile>> {
     if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return null;
 
     return DateTime(year, mm, dd);
-  }
-  String _fmt(DateTime d) =>
-      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}';
-}
-
-extension EListTotalCgmFile on List<UserCGMFile> {
-  int countPlatform(String platform) {
-    var count = 0;
-    forEach((d) {
-      if(d.platform == platform) {
-        count++;
-      }
-    });
-    return count;
   }
 }
