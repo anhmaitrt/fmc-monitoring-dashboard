@@ -232,7 +232,6 @@ extension EListTotalCgmFile on List<UserCGMFile> {
   }
 
   double get percentageInterruption {
-    print('$totalGapTimeInHour - ${getTotalSessionInHour(maxHour: 24)}; ${totalGapTimeInHour / getTotalSessionInHour(maxHour: 24) * 100}');
     return ((totalGapTimeInHour / getTotalSessionInHour(maxHour: 24)) * 100).roundToDouble();
   }
 }

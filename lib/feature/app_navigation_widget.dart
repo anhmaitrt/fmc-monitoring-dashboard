@@ -4,6 +4,8 @@ import 'package:fmc_monitoring_dashboard/feature/home/home_screen.dart';
 import 'package:sidebarx/sidebarx.dart';
 
 import '../core/components/side_bar_widget.dart';
+import '../core/components/toast/loading_widget.dart';
+import '../core/services/analytic_service.dart';
 
 class AppNavigationWidget extends StatefulWidget {
   const AppNavigationWidget({super.key});
@@ -23,10 +25,17 @@ class _AppNavigationWidgetState extends State<AppNavigationWidget> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Row(
+      body: Stack(
         children: [
-          SideBarWidget(controller: _controller),
-          _buildBody(),
+          Row(
+            children: [
+              SideBarWidget(controller: _controller),
+              _buildBody(),
+            ],
+          ),
+          LoadingOverlay(
+            progressStream: AnalyticService.instance.progressStream,
+          ),
         ],
       ),
     );

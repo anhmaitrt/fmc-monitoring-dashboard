@@ -186,13 +186,13 @@ class _DataScreenState extends State<DataScreen> {
     try {
       print('Loading total cgm data');
       setState(() {
-        ToastService.show(context, 'Đang tải...', type: ToastType.info, duration: null,);
+        // ToastService.show(context, 'Đang tải...', type: ToastType.info, duration: null,);
         _isLoading = true;
       });
       await AnalyticService.instance.fetchDB();
       setState(() {
         _isLoading = false;
-        ToastService.show(context, 'Tải xong ${AnalyticService.instance.dataFiles.length} file(s)', type: ToastType.success);
+        // ToastService.show(context, 'Tải xong ${AnalyticService.instance.dataFiles.length} file(s)', type: ToastType.success);
       });
     } catch (error, stackTrace) {
       print('Failed to refresh total cgm data: $error');

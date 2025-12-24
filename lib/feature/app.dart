@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:fmc_monitoring_dashboard/feature/home/home_screen.dart';
 import 'package:fmc_monitoring_dashboard/feature/login/login_screen.dart';
 
+import '../core/components/toast/loading_widget.dart';
+import '../core/services/analytic_service.dart';
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -9,7 +12,14 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       home: Center(child:
-        LoginScreen()
+          Stack(
+            children: [
+              LoginScreen(),
+              LoadingOverlay(
+                progressStream: AnalyticService.instance.progressStream,
+              )
+            ],
+          )
       ),
     );
   }

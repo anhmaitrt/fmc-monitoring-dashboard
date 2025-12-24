@@ -4,12 +4,10 @@ import 'package:fmc_monitoring_dashboard/core/services/toast_service.dart';
 import 'package:fmc_monitoring_dashboard/core/routing/router.dart';
 import 'package:fmc_monitoring_dashboard/core/services/google_drive_service.dart';
 import 'package:fmc_monitoring_dashboard/feature/app_navigation_widget.dart';
-import 'package:fmc_monitoring_dashboard/feature/home/home_screen.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:google_sign_in_web/web_only.dart' as web;
 
 import '../../core/services/google_service.dart';
-import '../file/data_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -78,9 +76,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   //#region ACTION
   Future<void> _onLoginSuccess() async {
-    ToastService.show(context, 'Đang tải...', type: ToastType.info, duration: null,);
+    // ToastService.show(context, 'Đang tải...', type: ToastType.info, duration: null,);
     await AnalyticService.instance.fetchDB();
-    ToastService.hide();
+    // ToastService.hide();
     context.navigateTo(AppNavigationWidget(), replace: true);
   }
   //#endregion
