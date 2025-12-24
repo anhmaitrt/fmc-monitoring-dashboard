@@ -43,11 +43,6 @@ class AnalyticService {
 
             _emit(LoadingProgress(isLoading: true, current: 0, total: rawFiles.length));
 
-            // final result = Future.wait(
-            //     rawFiles.map((file) async {
-            //
-            //     }
-            // ));
             for(int i = 0; i < rawFiles.length; i++) {
                 final file = rawFiles[i];
                 _emit(LoadingProgress(
@@ -77,21 +72,10 @@ class AnalyticService {
                     });
 
                     dataFiles.add(models);
-                    print('Converted ${models.length} users from ${file.name}');
+                    // print('Converted ${models.length} users from ${file.name}');
                     continue;
                 }
 
-                // Case 2: file is a single user object
-                // if (decoded is Map<String, dynamic>) {
-                //     final model = UserCGMFile.fromJson(decoded);
-                //     model.fileName = file.name;
-                //
-                //     dataFiles.add([model]);
-                //     print('Converted 1 user from ${file.name}');
-                //     continue;
-                // }
-
-                // Unknown format
                 throw Exception('Invalid JSON in ${file.name}: ${decoded.runtimeType}');
             }
             dataFiles.sort((a, b) {
