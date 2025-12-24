@@ -7,9 +7,10 @@ class LineChartWidget extends StatelessWidget {
   const LineChartWidget({
     super.key,
     this.chartName = '',
-    required this.xTitle,
+    required this.topTitles,
+    required this.bottomTitles,
     required this.maxX,
-    required this.yTitle,
+    required this.leftTitles,
     required this.maxY,
     required this.lineDataList,
     required this.lineTitleList,
@@ -18,9 +19,10 @@ class LineChartWidget extends StatelessWidget {
   final String chartName;
   final List<List<double>> lineDataList;
   final List<String> lineTitleList;
-  final List<String> xTitle;
+  final List<String> topTitles;
+  final List<String> bottomTitles;
   final double? maxX;
-  final List<String> yTitle;
+  final List<String> leftTitles;
   final double maxY;
   final List<Color> lineColors = Colors.primaries;
 
@@ -40,16 +42,16 @@ class LineChartWidget extends StatelessWidget {
                 gridData: const FlGridData(show: false),
                 titlesData: FlTitlesData(
                   bottomTitles: AxisTitles(
-                    sideTitles: bottomTitles,
+                    sideTitles: buildBottomTitles(),
                   ),
                   rightTitles: const AxisTitles(
                     sideTitles: SideTitles(showTitles: false),
                   ),
-                  topTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
+                  topTitles: AxisTitles(
+                    sideTitles: buildTopTitles(),
                   ),
                   leftTitles: AxisTitles(
-                    sideTitles: leftTitles(),
+                    sideTitles: buildLeftTitles(),
                   ),
                 ),
                 borderData: FlBorderData(
@@ -101,21 +103,67 @@ class LineChartWidget extends StatelessWidget {
     handleBuiltInTouches: true,
     touchTooltipData: LineTouchTooltipData(
       getTooltipColor: (touchedSpot) =>
-          Colors.blueGrey.withValues(alpha: 0.8),
+          Colors.blueGrey.withValues(alpha: 0.4),
     ),
   );
 
-  SideTitles get bottomTitles => SideTitles(
+  SideTitles buildTopTitles() => topTitles.isEmpty ? SideTitles(showTitles: false) : SideTitles(
+    showTitles: true,
+    reservedSize: 22,
+    interval: 1,
+    getTitlesWidget: buildTopTitleWidgets,
+  );
+
+  Widget buildTopTitleWidgets(double value, TitleMeta meta) {
+    final i = value.toInt();
+
+    if (i < 0 || i >= topTitles.length) return const SizedBox.shrink();
+
+    // final showEvery = (xTitle.length <= 7) ? 1 : (xTitle.length <= 14) ? 2 : 3;
+    // if (i % showEvery != 0 && i != xTitle.length - 1) return const SizedBox.shrink();
+
+    return SideTitleWidget(
+      meta: meta,
+      space: 8,
+      child: Text(topTitles[i],
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+    );
+  }
+
+  SideTitles buildBottomTitles() => SideTitles(
     showTitles: true,
     reservedSize: 22,
     interval: 1,
     getTitlesWidget: bottomTitleWidgets,
   );
 
-  Widget leftTitleWidgets(double value, TitleMeta meta) {
+  Widget bottomTitleWidgets(double value, TitleMeta meta) {
+    final i = value.toInt();
+
+    if (i < 0 || i >= bottomTitles.length) return const SizedBox.shrink();
+
+    // final showEvery = (xTitle.length <= 7) ? 1 : (xTitle.length <= 14) ? 2 : 3;
+    // if (i % showEvery != 0 && i != xTitle.length - 1) return const SizedBox.shrink();
+
+    return SideTitleWidget(
+      meta: meta,
+      space: 8,
+      child: Text(bottomTitles[i],
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+    );
+  }
+
+  SideTitles buildLeftTitles() => SideTitles(
+    getTitlesWidget: buildHorizontalWidgets,
+    showTitles: true,
+    interval: (maxY/8).ceilToDouble()/* 20*/,
+    reservedSize: 45,
+  );
+
+  Widget buildHorizontalWidgets(double value, TitleMeta meta) {
     const style = TextStyle(
       fontWeight: FontWeight.bold,
-      fontSize: 14,
+      fontSize: 12,
     );
 
     String text = value.toString();
@@ -129,13 +177,6 @@ class LineChartWidget extends StatelessWidget {
       ),
     );
   }
-
-  SideTitles leftTitles() => SideTitles(
-    getTitlesWidget: leftTitleWidgets,
-    showTitles: true,
-    interval: (maxY/10).ceilToDouble()/* 20*/,
-    reservedSize: 45,
-  );
 
   List<LineChartBarData> get barsData {
     List<LineChartBarData> lineBarDataList = <LineChartBarData>[];
@@ -161,22 +202,5 @@ class LineChartWidget extends StatelessWidget {
     belowBarData: BarAreaData(show: false),
     spots: spotList
   );
-
-  Widget bottomTitleWidgets(double value, TitleMeta meta) {
-    final i = value.toInt();
-
-    if (i < 0 || i >= xTitle.length) return const SizedBox.shrink();
-
-    // final showEvery = (xTitle.length <= 7) ? 1 : (xTitle.length <= 14) ? 2 : 3;
-    // if (i % showEvery != 0 && i != xTitle.length - 1) return const SizedBox.shrink();
-
-    return SideTitleWidget(
-      meta: meta,
-      space: 8,
-      child: Text(xTitle[i],
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-    );
-  }
-
-//#endregion
+  //#endregion
 }

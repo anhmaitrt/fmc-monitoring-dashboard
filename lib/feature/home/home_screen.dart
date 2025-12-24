@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:fmc_monitoring_dashboard/core/components/chart/line_chart_widget.dart';
 import 'package:fmc_monitoring_dashboard/core/services/analytic_service.dart';
 import 'package:fmc_monitoring_dashboard/core/services/toast_service.dart';
-import 'package:fmc_monitoring_dashboard/core/utils/app_size.dart';
 import 'package:fmc_monitoring_dashboard/model/user_cgm_file.dart';
 
 
@@ -53,12 +52,17 @@ class _HomeScreenState extends State<HomeScreen> {
       List<List<UserCGMFile>> androidUsers,
       List<List<UserCGMFile>> iosUser,
   ) {
+    final topTitles = <String>[];
+    for(int i = 0; i < data.length; i++) {
+      topTitles.add((androidUsers.count()[i] + iosUser.count()[i]).toString());
+    }
     return LineChartWidget(
       chartName: 'Khách dùng CGM',
       maxX: data.maxX,
       maxY: data.maxY,
-      xTitle: data.toDateList(),
-      yTitle: [],
+      topTitles: topTitles,
+      bottomTitles: data.toDateList(),
+      leftTitles: [],
       lineDataList: [androidUsers.count(), iosUser.count()],
       lineTitleList: ['android', 'ios'],
     );
@@ -69,18 +73,21 @@ class _HomeScreenState extends State<HomeScreen> {
       List<List<UserCGMFile>> androidUsers,
       List<List<UserCGMFile>> iosUser,
   ) {
-    final androidLongestGapTimeList = androidUsers.map((f) => f.longestGapTimeInHour).toList();
-    final iosLongestGapTimeList = iosUser.map((f) => f.longestGapTimeInHour).toList();
+    // final androidLongestGapTimeList = androidUsers.map((f) => f.longestGapTimeInHour).toList();
+    // final iosLongestGapTimeList = iosUser.map((f) => f.longestGapTimeInHour).toList();
+    final androidPercentageInterruptionList = androidUsers.map((f) => f.percentageInterruption).toList();
+    final iosPercentageInterruptionList = iosUser.map((f) => f.percentageInterruption).toList();
 
-    print('android user: ${androidUsers.length} - $androidLongestGapTimeList'
-        '\nios user: ${iosUser.length} - $iosLongestGapTimeList');
+    print('android user: ${androidUsers.length} - $androidPercentageInterruptionList'
+        '\nios user: ${iosUser.length} - $iosPercentageInterruptionList');
     return LineChartWidget(
-      chartName: 'Chậm đồng bộ (giờ)',
+      chartName: 'Chậm đồng bộ (%)',
       maxX: data.maxX,
-      maxY: [...androidLongestGapTimeList, ...iosLongestGapTimeList].reduce(max),
-      xTitle: data.toDateList(),
-      yTitle: [],
-      lineDataList: [androidLongestGapTimeList, iosLongestGapTimeList],
+      maxY: [...androidPercentageInterruptionList, ...iosPercentageInterruptionList].reduce(max),
+      topTitles: [],
+      bottomTitles: data.toDateList(),
+      leftTitles: [],
+      lineDataList: [androidPercentageInterruptionList, iosPercentageInterruptionList],
       lineTitleList: ['android', 'ios'],
     );
   }

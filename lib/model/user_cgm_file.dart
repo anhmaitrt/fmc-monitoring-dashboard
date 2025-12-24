@@ -149,10 +149,19 @@ class UserCGMFile {
 }
 
 extension EUserCGMFile on UserCGMFile {
-  double get totalGapTime {
+  double get totalGapTimeInMinute {
     int totalGapTime = 0;
     for(int i = 0; i < syncGaps.length; i++) {
       totalGapTime += syncGaps[i].duration.inMinutes;
+    }
+
+    return totalGapTime.toDouble();
+  }
+
+  double get totalGapTimeInHour {
+    int totalGapTime = 0;
+    for(int i = 0; i < syncGaps.length; i++) {
+      totalGapTime += syncGaps[i].duration.inHours;
     }
 
     return totalGapTime.toDouble();
@@ -201,6 +210,31 @@ extension EListTotalCgmFile on List<UserCGMFile> {
   double get longestGapTimeInMinute => map((f) => f.longestGapTimeInMinute).toList().reduce(max);
 
   double get longestGapTimeInHour => map((f) => f.longestGapTimeInHour).toList().reduce(max);
+
+  double get totalGapTimeInHour {
+    double count = 0;
+    for(int i = 0; i < length; i++) {
+        count += this[i].totalGapTimeInHour;
+    }
+    return count;
+  }
+
+  double getTotalSessionInHour({int? maxHour}) {
+    double count = 0;
+    for(int i = 0; i < length; i++) {
+        if(maxHour != null && this[i].currentSessionDuration.inHours > maxHour) {
+          count += maxHour;
+        } else {
+          count += this[i].currentSessionDuration.inHours;
+        }
+    }
+    return count;
+  }
+
+  double get percentageInterruption {
+    print('$totalGapTimeInHour - ${getTotalSessionInHour(maxHour: 24)}; ${totalGapTimeInHour / getTotalSessionInHour(maxHour: 24) * 100}');
+    return ((totalGapTimeInHour / getTotalSessionInHour(maxHour: 24)) * 100).roundToDouble();
+  }
 }
 
 extension EListListTotalCgmFile on List<List<UserCGMFile>> {
