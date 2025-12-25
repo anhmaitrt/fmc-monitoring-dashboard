@@ -97,17 +97,17 @@ class _DataScreenState extends State<DataScreen> {
         Table(
           border: TableBorder.all(color: Colors.black),
           columnWidths: {
-            0: FlexColumnWidth(1),
-            1: FlexColumnWidth(0.5),
-            2: FlexColumnWidth(0.5),
-            3: FlexColumnWidth(0.5),
+            0: FlexColumnWidth(0.8), //Id
+            1: FlexColumnWidth(0.4), //SDT
+            2: FlexColumnWidth(0.4),
+            3: FlexColumnWidth(0.4),
           },
           children: [
             TableRow(
               decoration: BoxDecoration(color: Colors.grey[300]),
               children: [
                 CellWidget(
-                  text: "Id (${files.firstOrNull?.dateTime})",
+                  text: "Id",
                   enableCopyOnTap: false,
                 ),
                 CellWidget(text: "Số Điện Thoại",
@@ -116,7 +116,7 @@ class _DataScreenState extends State<DataScreen> {
                   enableCopyOnTap: false,),
                 CellWidget(text: "Platform\n(${files.countByPlatform('android')} android, ${files.countByPlatform('ios')} ios)",
                   enableCopyOnTap: false,),
-                CellWidget(text: 'Ngày Bắt Đầu-Kết Thúc',
+                CellWidget(text: 'Ngày Bắt Đầu - Kết Thúc',
                   enableCopyOnTap: false,),
                 CellWidget(text: 'Khoảng chậm',
                   enableCopyOnTap: false,),
