@@ -115,7 +115,7 @@ class UserCGMFile {
       return Duration(minutes: -1);
     }
 
-    return startedAt!.getGap(dateTime!.formatHHMMDDMMYYYY);
+    return startedAt!.getGap(DateTime(dateTime!.year, dateTime!.month, dateTime!.day, 23, 59, 59).formatHHMMDDMMYYYY);
   }
 
   String summarizeSyncGaps() {
@@ -138,7 +138,8 @@ class UserCGMFile {
     }
 
     result[longestGapIndex] += ' (*)';
-    return '- Tổng $totalGap phút (${(totalGap/1440*100).toStringAsFixed(2)}%)' //24 hour
+    print('File ${fileName} (${dateTime!.formatHHMMDDMMYYYY}): Tổng $totalGap phút (${(totalGap/getCurrentSessionInHour(maxHour: 24)).toStringAsFixed(2)}%), ${currentSessionDuration.inHours}, ${getCurrentSessionInHour(maxHour: 24)}');
+    return '- Tổng $totalGap phút (${(totalGap/getCurrentSessionInHour(maxHour: 24)).toStringAsFixed(2)}%)' //24 hour
         '\n- Gap dài nhất: $longestGap phút (${(longestGap/60).toStringAsFixed(2)} giờ)'
         '\n- $syncGapCount khoảng chậm:'
         '\n${result.join('\n')}'
@@ -191,6 +192,17 @@ extension EUserCGMFile on UserCGMFile {
     }
 
     return longestGap.toDouble();
+  }
+
+  double getCurrentSessionInHour({int? maxHour}) {
+    // double count = 0;
+    //
+    // if(maxHour != null && currentSessionDuration.inHours > maxHour) {
+    //   count += maxHour;
+    // } else {
+    //   count += currentSessionDuration.inHours;
+    // }
+    return ((maxHour != null && currentSessionDuration.inHours > maxHour) ? maxHour : currentSessionDuration.inHours).toDouble();
   }
 }
 

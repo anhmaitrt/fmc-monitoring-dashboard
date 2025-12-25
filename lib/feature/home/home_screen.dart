@@ -57,7 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
       topTitles.add((androidUsers.count()[i] + iosUser.count()[i]).toString());
     }
     return LineChartWidget(
-      chartName: 'Khách dùng CGM',
+      chartName: 'Số lượng khách dùng CGM',
       maxX: data.maxX,
       maxY: data.maxY,
       topTitles: topTitles,
@@ -79,7 +79,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // print('android user: ${androidUsers.length} - $androidPercentageInterruptionList'
     //     '\nios user: ${iosUser.length} - $iosPercentageInterruptionList');
     return LineChartWidget(
-      chartName: 'Chậm đồng bộ (%)',
+      chartName: 'Tỉ lệ chậm đồng bộ theo ngày (%)',
       maxX: data.maxX,
       maxY: [...androidPercentageInterruptionList, ...iosPercentageInterruptionList].reduce(max),
       topTitles: [],
