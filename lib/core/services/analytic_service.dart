@@ -23,10 +23,8 @@ class AnalyticService {
 
     Future<void> fetchDB() async {
         try {
-            final result = await Future.wait([
+            await Future.wait([
                 _fetchData(),
-                // _fetchSlowSync(),
-                // _fetchCGMData(),
             ]);
 
         } catch (e, stackTrace) {
@@ -34,63 +32,6 @@ class AnalyticService {
             rethrow;
         }
     }
-
-    // Future<void> _fetchData() async {
-    //     try {
-    //         dataFiles.clear();
-    //
-    //         var rawFiles = await GoogleDriveService.instance.readFolder(DATA_FOLDER);
-    //
-    //         _emit(LoadingProgress(isLoading: true, current: 0, total: rawFiles.length));
-    //
-    //         for(int i = 0; i < rawFiles.length; i++) {
-    //             final file = rawFiles[i];
-    //             _emit(LoadingProgress(
-    //                 isLoading: true,
-    //                 current: i + 1,
-    //                 total: rawFiles.length,
-    //                 fileName: file.name,
-    //             ));
-    //
-    //             final content = await GoogleDriveService.instance.getFileContent(file);
-    //
-    //             final decoded = jsonDecode(content);
-    //
-    //             // Case 1: file is a LIST of user objects
-    //             if (decoded is List) {
-    //                 final jsonList = decoded
-    //                     .whereType<Map<String, dynamic>>();
-    //                 final models = <UserCGMFile>[];
-    //                 jsonList.forEach((j) {
-    //                     final model = UserCGMFile.fromJson(j);
-    //                     model.fileName = file.name;
-    //                     if(!(model.phoneNumber?.contains('demo') ?? false)) {
-    //                         models.add(model);
-    //                     }/* else {
-    //                         print('Detect demo user: ${model.fullName}, skip adding');
-    //                     }*/
-    //                 });
-    //
-    //                 dataFiles.add(models);
-    //                 // print('Converted ${models.length} users from ${file.name}');
-    //                 continue;
-    //             }
-    //
-    //             throw Exception('Invalid JSON in ${file.name}: ${decoded.runtimeType}');
-    //         }
-    //         dataFiles.sort((a, b) {
-    //             final da = a.firstOrNull!.dateTime;
-    //             final db = b.firstOrNull!.dateTime;
-    //             if (da == null || db == null) return 0;
-    //             return db.compareTo(da); // DESC
-    //         });
-    //         print('Fetched ${dataFiles.length} files for CGM data');
-    //     } catch (e, st) {
-    //         print('Failed to fetch total cgm data: $e\n$st');
-    //     } finally {
-    //         _emit(LoadingProgress.idle);
-    //     }
-    // }
 
     Future<void> _fetchData() async {
         try {
@@ -176,15 +117,6 @@ class AnalyticService {
             print('Failed to fetch total cgm data: $e\n$st');
         } finally {
             _emit(LoadingProgress.idle);
-        }
-    }
-
-
-
-    Future<void> _convertUserCGMFiles() async {
-        try {
-        } catch (error, stackTrace) {
-            print('Failed to convert user cgm files: $error\n$stackTrace');
         }
     }
 
