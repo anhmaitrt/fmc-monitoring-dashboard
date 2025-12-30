@@ -65,6 +65,7 @@ class _HomeScreenState extends State<HomeScreen> {
       leftTitles: [],
       lineDataList: [androidUsers.count(), iosUser.count()],
       lineTitleList: ['android', 'ios'],
+      toolTipData: [],
     );
   }
 
@@ -87,6 +88,11 @@ class _HomeScreenState extends State<HomeScreen> {
       leftTitles: [],
       lineDataList: [androidPercentageInterruptionList, iosPercentageInterruptionList],
       lineTitleList: ['android', 'ios'],
+      toolTipData: [
+        androidUsers.map((f) => '${f.getUserWithLongestGap().fullName} (${f.getUserWithLongestGap().totalGapTimeInHour}h)').toList(),
+        iosUser.map((f) => '${f.getUserWithLongestGap().fullName} (${f.getUserWithLongestGap().totalGapTimeInHour}h)').toList()
+      ],
+      unit: '%',
     );
   }
   //#endregion

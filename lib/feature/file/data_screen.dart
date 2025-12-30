@@ -101,6 +101,7 @@ class _DataScreenState extends State<DataScreen> {
             1: FlexColumnWidth(0.4), //SDT
             2: FlexColumnWidth(0.4),
             3: FlexColumnWidth(0.4),
+            4: FlexColumnWidth(0.8),
           },
           children: [
             TableRow(

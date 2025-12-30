@@ -14,13 +14,17 @@ class LineChartWidget extends StatelessWidget {
     required this.maxY,
     required this.lineDataList,
     required this.lineTitleList,
+    required this.toolTipData,
+    this.unit = ''
   });
 
   final String chartName;
+  final String unit;
   final List<List<double>> lineDataList;
   final List<String> lineTitleList;
   final List<String> topTitles;
   final List<String> bottomTitles;
+  final List<List<String>> toolTipData;
   final double? maxX;
   final List<String> leftTitles;
   final double maxY;
@@ -99,13 +103,65 @@ class LineChartWidget extends StatelessWidget {
   }
 
   //#region UI
-  LineTouchData get lineTouchData1 => LineTouchData(
-    handleBuiltInTouches: true,
-    touchTooltipData: LineTouchTooltipData(
-      getTooltipColor: (touchedSpot) =>
-          Colors.blueGrey.withValues(alpha: 0.4),
-    ),
-  );
+  LineTouchData get lineTouchData1 =>
+      LineTouchData(
+        handleBuiltInTouches: true,
+        touchTooltipData: LineTouchTooltipData(
+          getTooltipColor: (touchedSpot) =>
+              Colors.blueGrey.withValues(alpha: 0.4),
+          getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
+            return toolTipData.isEmpty ? defaultLineTooltipItem(touchedBarSpots) : touchedBarSpots.map((barSpot) {
+              final flSpot = barSpot;
+              // print('Spot tooltip: ${flSpot.x}, ${flSpot.barIndex}');
+              // if (flSpot.x == 0 || flSpot.x == 6) {
+              //   return null;
+              // }
+
+              return LineTooltipItem(
+                '${flSpot.y}$unit\n',
+                TextStyle(
+                  color: lineColors[flSpot.barIndex],
+                  fontWeight: FontWeight.bold,
+                ),
+                children: [
+                  TextSpan(
+                    text: toolTipData[flSpot.barIndex][flSpot.x.toInt()],
+                    style: TextStyle(
+                      color: lineColors[flSpot.barIndex],
+                      fontSize: 9
+                      // fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ],
+                textAlign: TextAlign.center,
+              );
+            }).toList();
+          },
+        ),
+        // touchCallback: (event, lineTouch) {
+        //   print('Touch: ${event.}, $lineTouch');
+        //   // if (!event.isInterestedForInteractions ||
+        //   //     lineTouch == null ||
+        //   //     lineTouch.lineBarSpots == null) {
+        //   //   setState(() {
+        //   //     touchedValue = -1;
+        //   //   });
+        //   //   return;
+        //   // }
+        //   // final value = lineTouch.lineBarSpots![0].x;
+        //   //
+        //   // if (value == 0 || value == 6) {
+        //   //   setState(() {
+        //   //     touchedValue = -1;
+        //   //   });
+        //   //   return;
+        //   // }
+        //   //
+        //   // setState(() {
+        //   //   touchedValue = value;
+        //   // });
+        // },
+      );
 
   SideTitles buildTopTitles() => topTitles.isEmpty ? SideTitles(showTitles: false) : SideTitles(
     showTitles: true,
@@ -198,7 +254,23 @@ class LineChartWidget extends StatelessWidget {
     color: color,
     barWidth: 4,
     isStrokeCapRound: true,
-    dotData: FlDotData(show: true),
+    dotData: FlDotData(show: true,/* getDotPainter: (spot, percent, barData, index) {
+      if (index.isEven) {
+        return FlDotCirclePainter(
+          radius: 8,
+          color: Colors.white,
+          strokeWidth: 5,
+          strokeColor: lineColors[0],
+        );
+      } else {
+        return FlDotSquarePainter(
+          size: 16,
+          color: Colors.white,
+          strokeWidth: 5,
+          strokeColor: lineColors[1],
+        );
+      }
+    },*/),
     belowBarData: BarAreaData(show: false),
     spots: spotList
   );

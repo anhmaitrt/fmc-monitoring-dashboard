@@ -246,6 +246,34 @@ extension EListTotalCgmFile on List<UserCGMFile> {
   double get percentageInterruption {
     return ((totalGapTimeInHour / getTotalSessionInHour(maxHour: 24)) * 100).roundToDouble();
   }
+
+  UserCGMFile getUserWithLongestGap() {
+    UserCGMFile? userWithLongestGap;
+    int maxGapDuration = 0;
+
+    return reduce((current, next) {
+      return current.totalGapTimeInHour > next.totalGapTimeInHour ? current : next;
+    });
+    // for (var user in this) {
+    //   // Find the longest gap for this user
+    //   final longestGap = user.syncGaps.reduce((current, next) {
+    //     final currentGapDuration = current;
+    //     final nextGapDuration = _calculateGapDuration(next);
+    //
+    //     // Pick the longer gap
+    //     return currentGapDuration > nextGapDuration ? current : next;
+    //   });
+    //
+    //   final currentGapDuration = _calculateGapDuration(longestGap);
+    //
+    //   if (currentGapDuration > maxGapDuration) {
+    //     maxGapDuration = currentGapDuration;
+    //     userWithLongestGap = user;
+    //   }
+    // }
+
+    return userWithLongestGap!;
+  }
 }
 
 extension EListListTotalCgmFile on List<List<UserCGMFile>> {

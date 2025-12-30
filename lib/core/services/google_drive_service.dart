@@ -48,7 +48,7 @@ class GoogleDriveService {
 
     Future<String> getFileContent(drive.File file) async {
         if (_driveApi == null) throw Exception("Drive api have not been initialized");
-        print('Getting content for file ${file.name}: ${file.id}, ${file.description}');
+        // print('Getting content for file ${file.name}: ${file.id}, ${file.description}');
         var response = await _driveApi!.files.get(
             file.id!,
             downloadOptions: drive.DownloadOptions.fullMedia,
