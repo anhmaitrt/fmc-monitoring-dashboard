@@ -15,7 +15,8 @@ class LineChartWidget extends StatelessWidget {
     required this.lineDataList,
     required this.lineTitleList,
     required this.toolTipData,
-    this.unit = ''
+    this.unit = '',
+    this.lineColors = Colors.primaries,
   });
 
   final String chartName;
@@ -28,7 +29,7 @@ class LineChartWidget extends StatelessWidget {
   final double? maxX;
   final List<String> leftTitles;
   final double maxY;
-  final List<Color> lineColors = Colors.primaries;
+  final List<Color> lineColors;
 
   @override
   Widget build(BuildContext context) {
@@ -82,7 +83,7 @@ class LineChartWidget extends StatelessWidget {
             textAlign: TextAlign.start,
               text: TextSpan(
                 text: lineTitleList[0],
-                style: TextStyle(color: lineColors[0]),
+                style: TextStyle(color: lineColors![0]),
                 children: lineTitleList.skip(1).map((l) {
                   return TextSpan(
                       text: ' - ',
@@ -90,7 +91,7 @@ class LineChartWidget extends StatelessWidget {
                       children: [
                         TextSpan(
                           text: l,
-                          style: TextStyle(color: lineColors[1]),
+                          style: TextStyle(color: lineColors![1]),
                         ),
                       ]
                   );
@@ -120,14 +121,14 @@ class LineChartWidget extends StatelessWidget {
               return LineTooltipItem(
                 '${flSpot.y}$unit\n',
                 TextStyle(
-                  color: lineColors[flSpot.barIndex],
+                  color: lineColors![flSpot.barIndex],
                   fontWeight: FontWeight.bold,
                 ),
                 children: [
                   TextSpan(
                     text: toolTipData[flSpot.barIndex][flSpot.x.toInt()],
                     style: TextStyle(
-                      color: lineColors[flSpot.barIndex],
+                      color: lineColors![flSpot.barIndex],
                       fontSize: 9
                       // fontWeight: FontWeight.w900,
                     ),
@@ -241,7 +242,7 @@ class LineChartWidget extends StatelessWidget {
       for(int j = 0; j < lineDataList[i].length; j++) {
         spotData.add(FlSpot(j.toDouble(), lineDataList[i][j]));
       }
-      lineBarDataList.add(_buildChartBar(spotList: spotData, color: lineColors[i]));
+      lineBarDataList.add(_buildChartBar(spotList: spotData, color: lineColors![i]));
     }
     return lineBarDataList;
   }

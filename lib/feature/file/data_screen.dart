@@ -91,8 +91,15 @@ class _DataScreenState extends State<DataScreen> {
   }
 
   Widget _buildTable(List<UserCGMFile> files) {
-    return files.isEmpty ? const Center(child: Text('Không có dữ liệu')) : ExpansionTile(
-      title: Text('${files.firstOrNull?.dateTime?.formatddMMyyyy}: ${files.length} khách'),
+    if(files.isEmpty) {
+      return const Center(child: Text('Không có dữ liệu'));
+    }
+    files.sort((a, b) => a.percentageInterruption < b.percentageInterruption ? 1 : -1);
+    return ExpansionTile(
+      title: Text('${files.firstOrNull?.dateTime?.formatddMMyyyy}: ${files.length} khách (${files.countByPlatform('android')} android, ${files.countByPlatform('ios')} ios)'),
+      subtitle: Text(files.summarizeSyncGaps(), style: TextStyle(
+        fontSize: 14,
+      ),),
       children: [
         Table(
           border: TableBorder.all(color: Colors.black),
@@ -115,7 +122,7 @@ class _DataScreenState extends State<DataScreen> {
                   enableCopyOnTap: false,),
                 CellWidget(text: "Họ Tên",
                   enableCopyOnTap: false,),
-                CellWidget(text: "Platform\n(${files.countByPlatform('android')} android, ${files.countByPlatform('ios')} ios)",
+                CellWidget(text: "Platform",
                   enableCopyOnTap: false,),
                 CellWidget(text: 'Ngày Bắt Đầu - Kết Thúc',
                   enableCopyOnTap: false,),

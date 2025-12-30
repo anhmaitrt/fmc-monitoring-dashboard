@@ -38,6 +38,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 height: 350,
                 margin: EdgeInsets.only(top: 24),
                 child: _buildInterruptionChart(data, androidUsers, iosUsers)
+              ),
+              Container(
+                height: 380,
+                margin: EdgeInsets.only(top: 24),
+                child: _buildInterruptionByPercentageRange(data, androidUsers, iosUsers)
               )
             ],
           ),
@@ -66,6 +71,7 @@ class _HomeScreenState extends State<HomeScreen> {
       lineDataList: [androidUsers.count(), iosUser.count()],
       lineTitleList: ['android', 'ios'],
       toolTipData: [],
+      lineColors: [Colors.lightBlue.shade400, Colors.pinkAccent.shade100],
     );
   }
 
@@ -93,6 +99,89 @@ class _HomeScreenState extends State<HomeScreen> {
         iosUser.map((f) => '${f.getUserWithLongestGap().fullName} (${f.getUserWithLongestGap().totalGapTimeInHour}h)').toList()
       ],
       unit: '%',
+      lineColors: [Colors.lightBlue.shade400, Colors.pinkAccent.shade100],
+    );
+  }
+
+  Widget _buildInterruptionByPercentageRange(
+      List<List<UserCGMFile>> data,
+      List<List<UserCGMFile>> androidUsers,
+      List<List<UserCGMFile>> iosUser,
+  ) {
+    int limit = 14;
+    if(data.length >= limit) {
+      data.removeRange(0, data.length-limit);
+      androidUsers.removeRange(0, androidUsers.length-limit);
+      iosUser.removeRange(0, iosUser.length-limit);
+    }
+    final androidPercentageInterruptionRangeList = androidUsers.map((f) => f.getPercentageRange('android')).toList();
+    final iosPercentageInterruptionRangeList = iosUser.map((f) => f.getPercentageRange('ios')).toList();
+
+    return Row(
+      children: [
+        Expanded(
+          child: LineChartWidget(
+            chartName: 'Mật độ chậm đồng bộ Android (%)',
+            maxX: limit.toDouble(),
+            maxY: androidPercentageInterruptionRangeList.map((a) => a.reduce(max)).toList().reduce(max),
+            topTitles: [],
+            bottomTitles: data.toDateList(),
+            leftTitles: [],
+            lineDataList: [
+              androidPercentageInterruptionRangeList
+                  .map((a) => a[0])
+                  .toList(),
+              androidPercentageInterruptionRangeList
+                  .map((a) => a[1])
+                  .toList(),
+              androidPercentageInterruptionRangeList
+                  .map((a) => a[2])
+                  .toList(),
+              androidPercentageInterruptionRangeList
+                  .map((a) => a[3])
+                  .toList(),
+            ],
+            lineTitleList: ['<20%', '≥20%', '≥50%', '≥80%'],
+            toolTipData: [
+              // androidUsers.map((f) => '${f.getUserWithLongestGap().fullName} (${f.getUserWithLongestGap().totalGapTimeInHour}h)').toList(),
+              // iosUser.map((f) => '${f.getUserWithLongestGap().fullName} (${f.getUserWithLongestGap().totalGapTimeInHour}h)').toList()
+            ],
+            unit: '%',
+            lineColors: [Colors.red.shade100, Colors.red.shade400, Colors.red.shade600, Colors.red.shade900,],
+          ),
+        ),
+        Expanded(
+          child: LineChartWidget(
+            chartName: 'Mật độ chậm đồng bộ iOS (%)',
+            maxX: limit.toDouble(),
+            maxY: iosPercentageInterruptionRangeList.map((a) => a.reduce(max)).toList().reduce(max),
+            topTitles: [],
+            bottomTitles: data.toDateList(),
+            leftTitles: [],
+            lineDataList: [
+              iosPercentageInterruptionRangeList
+                  .map((a) => a[0])
+                  .toList(),
+              iosPercentageInterruptionRangeList
+                  .map((a) => a[1])
+                  .toList(),
+              iosPercentageInterruptionRangeList
+                  .map((a) => a[2])
+                  .toList(),
+              iosPercentageInterruptionRangeList
+                  .map((a) => a[3])
+                  .toList(),
+            ],
+            lineTitleList: ['<20%', '≥20%', '≥50%', '≥80%'],
+            toolTipData: [
+              // androidUsers.map((f) => '${f.getUserWithLongestGap().fullName} (${f.getUserWithLongestGap().totalGapTimeInHour}h)').toList(),
+              // iosUser.map((f) => '${f.getUserWithLongestGap().fullName} (${f.getUserWithLongestGap().totalGapTimeInHour}h)').toList()
+            ],
+            unit: '%',
+            lineColors: [Colors.red.shade100, Colors.red.shade400, Colors.red.shade600, Colors.red.shade900,],
+          ),
+        ),
+      ],
     );
   }
   //#endregion
