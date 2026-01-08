@@ -57,6 +57,13 @@ class _HomeScreenState extends State<HomeScreen> {
       List<List<UserCGMFile>> androidUsers,
       List<List<UserCGMFile>> iosUser,
   ) {
+    int limit = 30;
+    if(data.length >= limit) {
+      data.removeRange(0, data.length-limit);
+      androidUsers.removeRange(0, androidUsers.length-limit);
+      iosUser.removeRange(0, iosUser.length-limit);
+    }
+
     final topTitles = <String>[];
     for(int i = 0; i < data.length; i++) {
       topTitles.add((androidUsers.count()[i] + iosUser.count()[i]).toString());
@@ -80,6 +87,12 @@ class _HomeScreenState extends State<HomeScreen> {
       List<List<UserCGMFile>> androidUsers,
       List<List<UserCGMFile>> iosUser,
   ) {
+    int limit = 30;
+    if(data.length >= limit) {
+      data.removeRange(0, data.length-limit);
+      androidUsers.removeRange(0, androidUsers.length-limit);
+      iosUser.removeRange(0, iosUser.length-limit);
+    }
     final androidPercentageInterruptionList = androidUsers.map((f) => f.percentageInterruption).toList();
     final iosPercentageInterruptionList = iosUser.map((f) => f.percentageInterruption).toList();
 
@@ -95,8 +108,8 @@ class _HomeScreenState extends State<HomeScreen> {
       lineDataList: [androidPercentageInterruptionList, iosPercentageInterruptionList],
       lineTitleList: ['android', 'ios'],
       toolTipData: [
-        androidUsers.map((f) => '${f.getUserWithLongestGap().fullName} (${f.getUserWithLongestGap().totalGapTimeInHour}h)').toList(),
-        iosUser.map((f) => '${f.getUserWithLongestGap().fullName} (${f.getUserWithLongestGap().totalGapTimeInHour}h)').toList()
+        androidUsers.map((f) => '${f.getUserWithLongestGap().fullName} (${f.getUserWithLongestGap().totalGapTimeInHour.toStringAsFixed(1)}h)').toList(),
+        iosUser.map((f) => '${f.getUserWithLongestGap().fullName} (${f.getUserWithLongestGap().totalGapTimeInHour.toStringAsFixed(1)}h)').toList()
       ],
       unit: '%',
       lineColors: [Colors.lightBlue.shade400, Colors.pinkAccent.shade100],

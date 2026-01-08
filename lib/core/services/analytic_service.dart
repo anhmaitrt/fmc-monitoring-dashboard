@@ -12,6 +12,9 @@ class AnalyticService {
 
     final String DATA_FOLDER = '1yMrZnw2BfQsICvu-Cfb44xsEMU3-w9fQ';
 
+    // ⚠️ tune this: 3–8 is typical for web
+    final _concurrency = 8;
+
     final _progressController = StreamController<LoadingProgress>.broadcast();
     Stream<LoadingProgress> get progressStream => _progressController.stream;
 
@@ -55,12 +58,9 @@ class AnalyticService {
             // results holder with stable order
             final results = List<List<UserCGMFile>?>.filled(total, null);
 
-            // ⚠️ tune this: 3–8 is typical for web
-            const concurrency = 5;
-
             await _runPool(
                 items: rawFiles,
-                concurrency: concurrency,
+                concurrency: _concurrency,
                 task: (file, index) async {
                     // Download
                     final content = await GoogleDriveService.instance.getFileContent(file);

@@ -139,8 +139,7 @@ class UserCGMFile {
     }
 
     result[longestGapIndex] += ' (*)';
-    // print('File ${fileName} (${dateTime!.formatHHMMDDMMYYYY}): Tổng $totalGap phút (${(totalGapTimeInMinute/getCurrentSessionInHour(maxHour: 24)).toStringAsFixed(2)}%), ${currentSessionDuration.inHours}, ${getCurrentSessionInHour(maxHour: 24)}');
-    return '- Tổng $totalGapTimeInMinute phút (${percentageInterruption.toStringAsFixed(1)}%)' //24 hour
+    return '- Tổng $totalGapTimeInMinute phút (${(totalGapTimeInMinute/60).toStringAsFixed(1)} giờ) (${percentageInterruption.toStringAsFixed(1)}%)' //24 hour
         '\n- Gap dài nhất: $longestGapTimeInMinute phút (${(longestGapTimeInMinute/60).toStringAsFixed(2)} giờ)'
         '\n- $syncGapCount khoảng chậm:'
         '\n${result.join('\n')}'
@@ -160,14 +159,7 @@ extension EUserCGMFile on UserCGMFile {
     return totalGapTime.toDouble();
   }
 
-  double get totalGapTimeInHour {
-    int totalGapTime = 0;
-    for(int i = 0; i < syncGaps.length; i++) {
-      totalGapTime += syncGaps[i].duration.inHours;
-    }
-
-    return totalGapTime.toDouble();
-  }
+  double get totalGapTimeInHour => (totalGapTimeInMinute/60);
 
   double get longestGapTimeInMinute {
     int syncGapInMinute = 0;
@@ -184,19 +176,20 @@ extension EUserCGMFile on UserCGMFile {
 
   double get longestGapTimeInHour {
     int syncGapInMinute = 0;
-    int longestGap = syncGaps.firstOrNull?.duration.inHours ?? 0;
+    int longestGapInMinute = syncGaps.firstOrNull?.duration.inMinutes ?? 0;
     for(int i = 0; i < syncGaps.length; i++) {
-      syncGapInMinute = syncGaps[i].duration.inHours;
-      if(longestGap < syncGapInMinute) {
-        longestGap = syncGapInMinute;
+      syncGapInMinute = syncGaps[i].duration.inMinutes;
+      if(longestGapInMinute < syncGapInMinute) {
+        longestGapInMinute = syncGapInMinute;
       }
     }
 
-    return longestGap.toDouble();
+    return longestGapInMinute/60;
   }
 
   double getCurrentSessionInHour({int? maxHour}) {
-    return ((maxHour != null && currentSessionDuration.inHours > maxHour) ? maxHour : currentSessionDuration.inHours).toDouble();
+    final currentSessionDuration = this.currentSessionDuration.inMinutes/60;
+    return ((maxHour != null && currentSessionDuration > maxHour) ? maxHour : currentSessionDuration).toDouble();
   }
 
   double getCurrentSessionInMinute({int? maxHour}) {
@@ -239,11 +232,13 @@ extension EListTotalCgmFile on List<UserCGMFile> {
 
   double getTotalSessionInHour({int? maxHour}) {
     double count = 0;
+    var sessionDurationInHour = 0.0;
     for(int i = 0; i < length; i++) {
-        if(maxHour != null && this[i].currentSessionDuration.inHours > maxHour) {
+        sessionDurationInHour = this[i].currentSessionDuration.inMinutes/60;
+        if(maxHour != null && sessionDurationInHour > maxHour) {
           count += maxHour;
         } else {
-          count += this[i].currentSessionDuration.inHours;
+          count += sessionDurationInHour;
         }
     }
     return count;
