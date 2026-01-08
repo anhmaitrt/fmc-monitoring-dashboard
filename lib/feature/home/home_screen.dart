@@ -119,16 +119,16 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildInterruptionByPercentageRange(
       List<List<UserCGMFile>> data,
       List<List<UserCGMFile>> androidUsers,
-      List<List<UserCGMFile>> iosUser,
+      List<List<UserCGMFile>> iosUsers,
   ) {
     int limit = 14;
     if(data.length >= limit) {
       data.removeRange(0, data.length-limit);
       androidUsers.removeRange(0, androidUsers.length-limit);
-      iosUser.removeRange(0, iosUser.length-limit);
+      iosUsers.removeRange(0, iosUsers.length-limit);
     }
     final androidPercentageInterruptionRangeList = androidUsers.map((f) => f.getPercentageRange('android')).toList();
-    final iosPercentageInterruptionRangeList = iosUser.map((f) => f.getPercentageRange('ios')).toList();
+    final iosPercentageInterruptionRangeList = iosUsers.map((f) => f.getPercentageRange('ios')).toList();
 
     return Row(
       children: [
@@ -137,7 +137,7 @@ class _HomeScreenState extends State<HomeScreen> {
             chartName: 'Mật độ chậm đồng bộ Android (%)',
             maxX: limit.toDouble(),
             maxY: androidPercentageInterruptionRangeList.map((a) => a.reduce(max)).toList().reduce(max),
-            topTitles: [],
+            topTitles: androidUsers.map((f) => '${f.length}u').toList(),
             bottomTitles: data.toDateList(),
             leftTitles: [],
             lineDataList: [
@@ -168,7 +168,7 @@ class _HomeScreenState extends State<HomeScreen> {
             chartName: 'Mật độ chậm đồng bộ iOS (%)',
             maxX: limit.toDouble(),
             maxY: iosPercentageInterruptionRangeList.map((a) => a.reduce(max)).toList().reduce(max),
-            topTitles: [],
+            topTitles: iosUsers.map((f) => '${f.length}u').toList(),
             bottomTitles: data.toDateList(),
             leftTitles: [],
             lineDataList: [
