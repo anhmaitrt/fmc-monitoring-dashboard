@@ -14,12 +14,19 @@ class SideBarWidget extends StatelessWidget {
   final SidebarXController _controller;
 
 
-  final primaryColor = Color(0xFF685BFF);
-  final canvasColor = Color(0xFF2E2E48);
-  final scaffoldBackgroundColor = Color(0xFF464667);
+  // final primaryColor = Color(0xFF685BFF);
+  // final canvasColor = Color(0xFF2E2E48);
+  // final scaffoldBackgroundColor = Color(0xFF464667);
+  // final accentCanvasColor = Color(0xFF3E3E61);
+  // final white = Colors.white;
+  // final actionColor = Color(0xFF5F5FA7).withOpacity(0.6);
+  // final divider = Divider(color: Colors.white.withOpacity(0.3), height: 1);
+  final primaryColor = Color(0xFF002966);
+  final canvasColor = Color(0xFF002966);
+  final scaffoldBackgroundColor = Color(0xFF002966);
   final accentCanvasColor = Color(0xFF3E3E61);
   final white = Colors.white;
-  final actionColor = Color(0xFF5F5FA7).withOpacity(0.6);
+  final actionColor = Colors.white.withOpacity(0.6);
   final divider = Divider(color: Colors.white.withOpacity(0.3), height: 1);
 
   @override
@@ -77,7 +84,7 @@ class SideBarWidget extends StatelessWidget {
       ),
       footerDivider: divider,
       headerBuilder: (context, extended) {
-        return SizedBox(
+        return extended ? SizedBox(
           height: 100,
           child: Padding(
             padding: const EdgeInsets.all(16.0),
@@ -93,19 +100,21 @@ class SideBarWidget extends StatelessWidget {
               ),),
             ),
           ),
+        ) : SizedBox(
+          height: 16,
         );
       },
       items: [
         SidebarXItem(
           icon: Icons.home,
-          label: 'Overview',
+          label: 'Tổng quan',
           onTap: () {
-            debugPrint('Overview');
+            debugPrint('Tổng quan');
           },
         ),
         const SidebarXItem(
           icon: Icons.summarize,
-          label: 'Tổng khách dùng CGM',
+          label: 'Chi tiết',
         ),
         // SidebarXItem(
         //   icon: Icons.favorite,

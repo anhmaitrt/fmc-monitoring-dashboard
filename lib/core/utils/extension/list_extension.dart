@@ -1,8 +1,12 @@
-extension EList on List {
+extension EList on List? {
+  bool isNullOrEmpty() => this == null || this!.isEmpty;
+
   String inString() {
     String result = '';
-    for(int i = 0; i < length; i++) {
-      result += '${this[i]}${(i < length - 1) ? ', ' : ''}';
+    if(this == null) return result;
+
+    for(int i = 0; i < this!.length; i++) {
+      result += '${this![i]}${(i < this!.length - 1) ? ', ' : ''}';
     }
 
     return result;

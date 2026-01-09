@@ -30,10 +30,11 @@ class _DataScreenState extends State<DataScreen> {
     print('Load total ${AnalyticService.instance.dataFiles.length} files for total cgm data');
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Tổng khách dùng CGM'),
+        title: const Text('Chi tiết', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),),
+        backgroundColor: AppColors.white,
         actions: [
           IconButton(
-            onPressed: _isLoading ? null : _refresh,
+            onPressed: _isLoading ? null : _fetchData,
             icon: AnimatedSwitcher(
               duration: const Duration(milliseconds: 1500),
               transitionBuilder: (child, animation) {
@@ -190,7 +191,7 @@ class _DataScreenState extends State<DataScreen> {
   //#endregion
 
   //#region ACTION
-  Future<void> _refresh() async {
+  Future<void> _fetchData() async {
     try {
       print('Loading total cgm data');
       setState(() {

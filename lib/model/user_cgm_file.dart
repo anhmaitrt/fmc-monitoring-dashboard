@@ -363,6 +363,49 @@ extension EListTotalCgmFile on List<UserCGMFile> {
 
     return [androidUnder20, androidOver20, androidOver50, androidOver80];
   }
+
+  // List<UserCGMFile> getPercentageRangeByUser(String platform) {
+  //   double countAndroid = 0;
+  //   double androidUnder20 = 0;
+  //   double androidOver20 = 0;
+  //   double androidOver50 = 0;
+  //   double androidOver80 = 0;
+  //
+  //   // int countIos = 0;
+  //   // int iosUnder20 = 0;
+  //   // int iosOver20 = 0;
+  //   // int iosOver50 = 0;
+  //   // int iosOver80 = 0;
+  //
+  //   for(int i = 0; i < length; i++) {
+  //     if(this[i].platform == platform) {
+  //       countAndroid++;
+  //       if(this[i].percentageInterruption < 20) {
+  //         androidUnder20++;
+  //       } else if(this[i].percentageInterruption >= 20 && this[i].percentageInterruption < 50) {
+  //         androidOver20++;
+  //       } else if(this[i].percentageInterruption >= 50 && this[i].percentageInterruption < 80) {
+  //         androidOver50++;
+  //       } else if(this[i].percentageInterruption >= 80) {
+  //         androidOver80++;
+  //       }
+  //     }
+  //     // else if(this[i].platform == 'ios') {
+  //     //   countIos++;
+  //     //   if(this[i].percentageInterruption < 20) {
+  //     //     iosUnder20++;
+  //     //   } else if(this[i].percentageInterruption >= 20 && this[i].percentageInterruption < 50) {
+  //     //     iosOver20++;
+  //     //   } else if(this[i].percentageInterruption >= 50 && this[i].percentageInterruption < 80) {
+  //     //     iosOver50++;
+  //     //   } else if(this[i].percentageInterruption >= 80) {
+  //     //     iosOver80++;
+  //     //   }
+  //     // }
+  //   }
+  //
+  //   return [androidUnder20, androidOver20, androidOver50, androidOver80];
+  // }
 }
 
 extension EListListTotalCgmFile on List<List<UserCGMFile>> {

@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import '../../style/app_colors.dart';
+import '../../utils/extension/list_extension.dart';
 
 class LineChartWidget extends StatelessWidget {
   const LineChartWidget({
@@ -14,7 +15,11 @@ class LineChartWidget extends StatelessWidget {
     required this.maxY,
     required this.lineDataList,
     required this.lineTitleList,
-    required this.toolTipData,
+    this.tooltipData,
+    this.subToolTipData,
+    this.topAxisName,
+    this.leftAxisName,
+    this.bottomAxisName,
     this.unit = '',
     this.lineColors = Colors.primaries,
   });
@@ -25,9 +30,13 @@ class LineChartWidget extends StatelessWidget {
   final List<String> lineTitleList;
   final List<String> topTitles;
   final List<String> bottomTitles;
-  final List<List<String>> toolTipData;
+  final List<List<String>>? tooltipData;
+  final List<List<String>>? subToolTipData;
+  final String? topAxisName;
   final double? maxX;
+  final String? leftAxisName;
   final List<String> leftTitles;
+  final String? bottomAxisName;
   final double maxY;
   final List<Color> lineColors;
 
@@ -46,17 +55,20 @@ class LineChartWidget extends StatelessWidget {
                 lineTouchData: lineTouchData1,
                 gridData: const FlGridData(show: false),
                 titlesData: FlTitlesData(
-                  bottomTitles: AxisTitles(
-                    sideTitles: buildBottomTitles(),
+                  rightTitles: buildAxis(
+                    titles: SideTitles(showTitles: false),
                   ),
-                  rightTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
+                  topTitles:buildAxis(
+                    axisName: topAxisName,
+                    titles: buildTopTitles(),
                   ),
-                  topTitles: AxisTitles(
-                    sideTitles: buildTopTitles(),
+                  leftTitles: buildAxis(
+                    titles: buildLeftTitles(),
+                    axisName: leftAxisName,
                   ),
-                  leftTitles: AxisTitles(
-                    sideTitles: buildLeftTitles(),
+                  bottomTitles: buildAxis(
+                    titles: buildBottomTitles(),
+                    axisName: bottomAxisName,
                   ),
                 ),
                 borderData: FlBorderData(
@@ -104,39 +116,51 @@ class LineChartWidget extends StatelessWidget {
   }
 
   //#region UI
+  AxisTitles buildAxis({
+    required SideTitles titles,
+    String? axisName,
+  }) {
+    return AxisTitles(
+      axisNameWidget: axisName != null ? Text(axisName, style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, fontWeight: FontWeight.w900)) : Container(),
+      // axisNameSize: 14,
+      sideTitles: titles,
+    );
+  }
+
   LineTouchData get lineTouchData1 =>
       LineTouchData(
         handleBuiltInTouches: true,
         touchTooltipData: LineTouchTooltipData(
           getTooltipColor: (touchedSpot) =>
               Colors.blueGrey.withValues(alpha: 0.4),
-          getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
-            return toolTipData.isEmpty ? defaultLineTooltipItem(touchedBarSpots) : touchedBarSpots.map((barSpot) {
-              final flSpot = barSpot;
-              // print('Spot tooltip: ${flSpot.x}, ${flSpot.barIndex}');
-              // if (flSpot.x == 0 || flSpot.x == 6) {
-              //   return null;
-              // }
-
-              return LineTooltipItem(
-                '${flSpot.y}$unit\n',
-                TextStyle(
-                  color: lineColors![flSpot.barIndex],
-                  fontWeight: FontWeight.bold,
-                ),
-                children: [
-                  TextSpan(
-                    text: toolTipData[flSpot.barIndex][flSpot.x.toInt()],
-                    style: TextStyle(
-                      color: lineColors![flSpot.barIndex],
-                      fontSize: 9
-                      // fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ],
-                textAlign: TextAlign.center,
-              );
-            }).toList();
+          getTooltipItems: (touchedBarSpots) {
+            return _buildToolTip(touchedBarSpots);
+            // return subToolTipData.isNullOrEmpty() ? defaultLineTooltipItem(touchedBarSpots) : touchedBarSpots.map((barSpot) {
+            //   final flSpot = barSpot;
+            //   // print('Spot tooltip: ${flSpot.x}, ${flSpot.barIndex}');
+            //   // if (flSpot.x == 0 || flSpot.x == 6) {
+            //   //   return null;
+            //   // }
+            //
+            //   return LineTooltipItem(
+            //     '${flSpot.y}$unit\n',
+            //     TextStyle(
+            //       color: lineColors![flSpot.barIndex],
+            //       fontWeight: FontWeight.bold,
+            //     ),
+            //     children: [
+            //       TextSpan(
+            //         text: subToolTipData[flSpot.barIndex][flSpot.x.toInt()],
+            //         style: TextStyle(
+            //           color: lineColors![flSpot.barIndex],
+            //           fontSize: 9
+            //           // fontWeight: FontWeight.w900,
+            //         ),
+            //       ),
+            //     ],
+            //     textAlign: TextAlign.center,
+            //   );
+            // }).toList();
           },
         ),
         // touchCallback: (event, lineTouch) {
@@ -163,6 +187,39 @@ class LineChartWidget extends StatelessWidget {
         //   // });
         // },
       );
+
+  List<LineTooltipItem?> _buildToolTip(List<LineBarSpot> touchedBarSpots) {
+    if(tooltipData.isNullOrEmpty() && subToolTipData.isNullOrEmpty() && unit.isEmpty) {
+      return defaultLineTooltipItem(touchedBarSpots);
+    }
+
+    return touchedBarSpots.map((barSpot) {
+      final flSpot = barSpot;
+      // print('Spot tooltip: ${flSpot.x}, ${flSpot.barIndex}');
+      // if (flSpot.x == 0 || flSpot.x == 6) {
+      //   return null;
+      // }
+      return LineTooltipItem(
+        tooltipData.isNullOrEmpty() ? '${flSpot.y}$unit${subToolTipData.isNullOrEmpty() ? '' : '\n'}' : '${tooltipData![flSpot.barIndex]}',
+        textAlign: TextAlign.center,
+        TextStyle(
+          color: lineColors[flSpot.barIndex],
+          fontWeight: FontWeight.bold,
+          fontSize: 14,
+        ),
+        children: subToolTipData.isNullOrEmpty() ? null : [
+          TextSpan(
+            text: subToolTipData![flSpot.barIndex][flSpot.x.toInt()],
+            style: TextStyle(
+                color: lineColors[flSpot.barIndex],
+                fontSize: 10
+              // fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      );
+    }).toList();
+  }
 
   SideTitles buildTopTitles() => topTitles.isEmpty ? SideTitles(showTitles: false) : SideTitles(
     showTitles: true,
