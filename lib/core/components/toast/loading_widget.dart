@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 
+import '../../style/app_colors.dart';
 import 'model/loading_progress.dart';
 
 class LoadingOverlay extends StatefulWidget {
@@ -43,6 +44,7 @@ class _LoadingOverlayState extends State<LoadingOverlay> {
       child: Center(
         child: Card(
           elevation: 12,
+          color: AppColors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -53,7 +55,7 @@ class _LoadingOverlayState extends State<LoadingOverlay> {
                 children: [
                   const CircularProgressIndicator(),
                   const SizedBox(height: 16),
-                  Text('Loading files', style: Theme.of(context).textTheme.titleMedium),
+                  Text('Đang tải dữ liệu', style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 8),
                   Text('${_p.current} / ${_p.total}', style: const TextStyle(fontWeight: FontWeight.bold)),
                   if (_p.fileName != null) ...[

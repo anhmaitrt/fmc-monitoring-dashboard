@@ -27,7 +27,7 @@ class AppColors {
   //#endregion
 
   //#region SECONDARY
-  static const Color secondary = secondary60;
+  static const Color secondary = AppColors.white;
   static const Gradient secondaryGradient = LinearGradient(
     begin: Alignment.centerLeft,
     end: Alignment.centerRight,

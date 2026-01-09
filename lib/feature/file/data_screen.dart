@@ -32,6 +32,7 @@ class _DataScreenState extends State<DataScreen> {
       appBar: AppBar(
         title: const Text('Chi tiết', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),),
         backgroundColor: AppColors.white,
+        surfaceTintColor: AppColors.white,
         actions: [
           IconButton(
             onPressed: _isLoading ? null : _fetchData,
@@ -48,6 +49,7 @@ class _DataScreenState extends State<DataScreen> {
           )
         ],
       ),
+      backgroundColor: AppColors.backgroundDisable,
       body: Column(
         children: [
           _buildSearchBar(),
@@ -68,7 +70,8 @@ class _DataScreenState extends State<DataScreen> {
 
   //#region UI
   Widget _buildSearchBar() {
-    return Padding(
+    return Container(
+      color: AppColors.white,
       padding: const EdgeInsets.all(16),
       child: TextField(
         controller: _searchCtrl,
@@ -96,73 +99,76 @@ class _DataScreenState extends State<DataScreen> {
       return const Center(child: Text('Không có dữ liệu'));
     }
     files.sort((a, b) => a.percentageInterruption < b.percentageInterruption ? 1 : -1);
-    return ExpansionTile(
-      title: Text('${files.firstOrNull?.dateTime?.formatddMMyyyy}: ${files.length} khách (${files.countByPlatform('android')} android, ${files.countByPlatform('ios')} ios)'),
-      subtitle: Text(files.summarizeSyncGaps(), style: TextStyle(
-        fontSize: 14,
-      ),),
-      children: [
-        Table(
-          border: TableBorder.all(color: Colors.black),
-          columnWidths: {
-            0: FlexColumnWidth(0.8), //Id
-            1: FlexColumnWidth(0.4), //SDT
-            2: FlexColumnWidth(0.4),
-            3: FlexColumnWidth(0.4),
-            4: FlexColumnWidth(0.8),
-          },
-          children: [
-            TableRow(
-              decoration: BoxDecoration(color: Colors.grey[300]),
-              children: [
-                CellWidget(
-                  text: "Id",
-                  enableCopyOnTap: false,
-                ),
-                CellWidget(text: "Số Điện Thoại",
-                  enableCopyOnTap: false,),
-                CellWidget(text: "Họ Tên",
-                  enableCopyOnTap: false,),
-                CellWidget(text: "Platform",
-                  enableCopyOnTap: false,),
-                CellWidget(text: 'Ngày Bắt Đầu - Kết Thúc',
-                  enableCopyOnTap: false,),
-                CellWidget(text: 'Khoảng chậm',
-                  enableCopyOnTap: false,),
-              ],
-            ),
-            // Data rows
-            ...files.map((file) {
-              return TableRow(
-                decoration: (file.isDeleted ?? false) ? BoxDecoration(color: AppColors.disableText) : null,
+    return Card.filled(
+      color: AppColors.white,
+      child: ExpansionTile(
+        title: Text('${files.firstOrNull?.dateTime?.formatddMMyyyy}: ${files.length} khách (${files.countByPlatform('android')} android, ${files.countByPlatform('ios')} ios)', style: TextStyle(fontWeight: FontWeight.bold),),
+        subtitle: Text(files.summarizeSyncGaps(), style: TextStyle(
+          fontSize: 14,
+        ),),
+        children: [
+          Table(
+            border: TableBorder.all(color: Colors.black),
+            columnWidths: {
+              0: FlexColumnWidth(0.8), //Id
+              1: FlexColumnWidth(0.4), //SDT
+              2: FlexColumnWidth(0.4),
+              3: FlexColumnWidth(0.4),
+              4: FlexColumnWidth(0.8),
+            },
+            children: [
+              TableRow(
+                decoration: BoxDecoration(color: Colors.grey[300]),
                 children: [
                   CellWidget(
-                    text: file.userId ?? '',
-                  ),
-                  CellWidget(
-                    text: file.phoneNumber ?? '',
-                  ),
-                  CellWidget(
-                    text: file.fullName ?? '',
-                  ),
-                  CellWidget(
-                    text: file.platform ?? '',
+                    text: "Id",
                     enableCopyOnTap: false,
                   ),
-                  CellWidget(
-                    text: 'Đã dùng ${file.currentSessionDuration.inDays} ngày\n${file.startedAt} - ${file.stoppedAt}',
-                    enableCopyOnTap: false,
-                  ),
-                  CellWidget(
-                    text: file.summarizeSyncGaps(),
-                    enableCopyOnTap: false,
-                  ),
+                  CellWidget(text: "Số Điện Thoại",
+                    enableCopyOnTap: false,),
+                  CellWidget(text: "Họ Tên",
+                    enableCopyOnTap: false,),
+                  CellWidget(text: "Platform",
+                    enableCopyOnTap: false,),
+                  CellWidget(text: 'Ngày Bắt Đầu - Kết Thúc',
+                    enableCopyOnTap: false,),
+                  CellWidget(text: 'Khoảng chậm',
+                    enableCopyOnTap: false,),
                 ],
-              );
-            })
-          ],
-        )
-      ],
+              ),
+              // Data rows
+              ...files.map((file) {
+                return TableRow(
+                  decoration: (file.isDeleted ?? false) ? BoxDecoration(color: AppColors.disableText) : null,
+                  children: [
+                    CellWidget(
+                      text: file.userId ?? '',
+                    ),
+                    CellWidget(
+                      text: file.phoneNumber ?? '',
+                    ),
+                    CellWidget(
+                      text: file.fullName ?? '',
+                    ),
+                    CellWidget(
+                      text: file.platform ?? '',
+                      enableCopyOnTap: false,
+                    ),
+                    CellWidget(
+                      text: 'Đã dùng ${file.currentSessionDuration.inDays} ngày\n${file.startedAt} - ${file.stoppedAt}',
+                      enableCopyOnTap: false,
+                    ),
+                    CellWidget(
+                      text: file.summarizeSyncGaps(),
+                      enableCopyOnTap: false,
+                    ),
+                  ],
+                );
+              })
+            ],
+          )
+        ],
+      ),
     );
   }
 

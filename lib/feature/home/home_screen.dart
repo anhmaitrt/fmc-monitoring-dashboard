@@ -29,6 +29,7 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: Text('Tổng quan', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),),
         backgroundColor: AppColors.white,
+        surfaceTintColor: AppColors.white,
         actions: [
           IconButton(
             onPressed: _isLoading ? null : _fetchData,
@@ -45,8 +46,8 @@ class _HomeScreenState extends State<HomeScreen> {
           )
         ],
       ),
-      body: Container(
-        color: AppColors.backgroundDisable,
+      backgroundColor: AppColors.backgroundDisable,
+      body: SizedBox(
         height: double.infinity,
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 24),
@@ -59,12 +60,12 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               Container(
                 height: 350,
-                margin: EdgeInsets.only(top: 24),
+                margin: EdgeInsets.only(top: 16),
                 child: _buildInterruptionChart(data, androidUsers, iosUsers)
               ),
               Container(
                 height: 380,
-                margin: EdgeInsets.only(top: 24),
+                margin: EdgeInsets.only(top: 16),
                 child: _buildInterruptionByPercentageRange(data, androidUsers, iosUsers)
               )
             ],
@@ -107,8 +108,10 @@ class _HomeScreenState extends State<HomeScreen> {
         maxX: data.maxX,
         maxY: data.maxY,
         topTitles: topTitles,
+        topAxisName: 'Tổng khách',
         bottomTitles: data.toDateList(),
         leftTitles: [],
+        leftAxisName: 'Số lượng theo platform',
         lineDataList: [androidUsers.count(), iosUser.count()],
         lineTitleList: ['android', 'ios'],
         subToolTipData: [],
@@ -135,12 +138,13 @@ class _HomeScreenState extends State<HomeScreen> {
     //     '\nios user: ${iosUser.length} - $iosPercentageInterruptionList');
     return _buildChart(
         chart: LineChartWidget(
-          chartName: 'Tỉ lệ chậm đồng bộ theo ngày (%)',
+          chartName: 'Tỉ lệ chậm đồng bộ theo ngày',
           maxX: data.maxX,
           maxY: [...androidPercentageInterruptionList, ...iosPercentageInterruptionList].reduce(max),
           topTitles: [],
           bottomTitles: data.toDateList(),
           leftTitles: [],
+          leftAxisName: '%',
           lineDataList: [androidPercentageInterruptionList, iosPercentageInterruptionList],
           lineTitleList: ['android', 'ios'],
           subToolTipData: [
@@ -215,6 +219,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ),
+        SizedBox(width: 16,),
         Expanded(
           child: _buildChart(
             chart: LineChartWidget(
