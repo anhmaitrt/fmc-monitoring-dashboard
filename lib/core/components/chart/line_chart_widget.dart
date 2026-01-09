@@ -42,6 +42,21 @@ class LineChartWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lineTitleWidget = <TextSpan>[];
+    if(lineTitleList.length > 1) {
+      for (int i = 1; i < lineTitleList.length; i++) {
+        lineTitleWidget.add(TextSpan(
+            text: ' - ',
+            style: TextStyle(color: Colors.black),
+            children: [
+              TextSpan(
+                text: lineTitleList[i],
+                style: TextStyle(color: lineColors[i]),
+              ),
+            ]
+        ));
+      }
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -95,19 +110,8 @@ class LineChartWidget extends StatelessWidget {
             textAlign: TextAlign.start,
               text: TextSpan(
                 text: lineTitleList[0],
-                style: TextStyle(color: lineColors![0]),
-                children: lineTitleList.skip(1).map((l) {
-                  return TextSpan(
-                      text: ' - ',
-                      style: TextStyle(color: Colors.black),
-                      children: [
-                        TextSpan(
-                          text: l,
-                          style: TextStyle(color: lineColors![1]),
-                        ),
-                      ]
-                  );
-                }).toList()
+                style: TextStyle(color: lineColors[0]),
+                children: lineTitleWidget
               ),
           ),
         )

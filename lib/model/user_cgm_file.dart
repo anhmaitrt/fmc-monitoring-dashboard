@@ -139,7 +139,7 @@ class UserCGMFile {
     }
 
     result[longestGapIndex] += ' (*)';
-    return '- Tổng $totalGapTimeInMinute phút (${(totalGapTimeInMinute/60).toStringAsFixed(1)} giờ) (${percentageInterruption.toStringAsFixed(1)}%)' //24 hour
+    return '- Tổng $totalGapTimeInMinute phút (${(totalGapTimeInMinute/60).toStringAsFixed(1)} giờ) (${interruptionPercentage.toStringAsFixed(1)}%)' //24 hour
         '\n- Gap dài nhất: $longestGapTimeInMinute phút (${(longestGapTimeInMinute/60).toStringAsFixed(2)} giờ)'
         '\n- $syncGapCount khoảng chậm:'
         '\n${result.join('\n')}'
@@ -174,18 +174,18 @@ extension EUserCGMFile on UserCGMFile {
     return longestGap.toDouble();
   }
 
-  double get longestGapTimeInHour {
-    int syncGapInMinute = 0;
-    int longestGapInMinute = syncGaps.firstOrNull?.duration.inMinutes ?? 0;
-    for(int i = 0; i < syncGaps.length; i++) {
-      syncGapInMinute = syncGaps[i].duration.inMinutes;
-      if(longestGapInMinute < syncGapInMinute) {
-        longestGapInMinute = syncGapInMinute;
-      }
-    }
-
-    return longestGapInMinute/60;
-  }
+  // double get longestGapTimeInHour {
+  //   int syncGapInMinute = 0;
+  //   int longestGapInMinute = syncGaps.firstOrNull?.duration.inMinutes ?? 0;
+  //   for(int i = 0; i < syncGaps.length; i++) {
+  //     syncGapInMinute = syncGaps[i].duration.inMinutes;
+  //     if(longestGapInMinute < syncGapInMinute) {
+  //       longestGapInMinute = syncGapInMinute;
+  //     }
+  //   }
+  //
+  //   return longestGapInMinute/60;
+  // }
 
   double getCurrentSessionInHour({int? maxHour}) {
     final currentSessionDuration = this.currentSessionDuration.inMinutes/60;
@@ -200,7 +200,7 @@ extension EUserCGMFile on UserCGMFile {
     return ((maxMinute != null && currentSessionDuration.inMinutes > maxMinute) ? maxMinute : currentSessionDuration.inMinutes).toDouble();
   }
 
-  double get percentageInterruption {
+  double get interruptionPercentage {
     return totalGapTimeInMinute*100/getCurrentSessionInMinute(maxHour: 24);
   }
 }
@@ -220,7 +220,7 @@ extension EListTotalCgmFile on List<UserCGMFile> {
 
   double get longestGapTimeInMinute => map((f) => f.longestGapTimeInMinute).toList().reduce(max);
 
-  double get longestGapTimeInHour => map((f) => f.longestGapTimeInHour).toList().reduce(max);
+  double get longestGapTimeInHour => map((f) => longestGapTimeInMinute/60/*f.longestGapTimeInHour*/).toList().reduce(max);
 
   double get totalGapTimeInHour {
     double count = 0;
@@ -249,31 +249,9 @@ extension EListTotalCgmFile on List<UserCGMFile> {
   }
 
   UserCGMFile getUserWithLongestGap() {
-    UserCGMFile? userWithLongestGap;
-    int maxGapDuration = 0;
-
     return reduce((current, next) {
       return current.totalGapTimeInHour > next.totalGapTimeInHour ? current : next;
     });
-    // for (var user in this) {
-    //   // Find the longest gap for this user
-    //   final longestGap = user.syncGaps.reduce((current, next) {
-    //     final currentGapDuration = current;
-    //     final nextGapDuration = _calculateGapDuration(next);
-    //
-    //     // Pick the longer gap
-    //     return currentGapDuration > nextGapDuration ? current : next;
-    //   });
-    //
-    //   final currentGapDuration = _calculateGapDuration(longestGap);
-    //
-    //   if (currentGapDuration > maxGapDuration) {
-    //     maxGapDuration = currentGapDuration;
-    //     userWithLongestGap = user;
-    //   }
-    // }
-
-    return userWithLongestGap!;
   }
 
   String summarizeSyncGaps() {
@@ -282,86 +260,83 @@ extension EListTotalCgmFile on List<UserCGMFile> {
     int androidOver20 = 0;
     int androidOver50 = 0;
     int androidOver80 = 0;
+    int androidStopSync = 0;
 
     int countIos = 0;
     int iosUnder20 = 0;
     int iosOver20 = 0;
     int iosOver50 = 0;
     int iosOver80 = 0;
+    int iosStopSync = 0;
 
+    double interruptionPercentage = 0;
     for(int i = 0; i < length; i++) {
-        if(this[i].platform == 'android') {
-          countAndroid++;
-          if(this[i].percentageInterruption < 20) {
-            androidUnder20++;
-          } else if(this[i].percentageInterruption >= 20 && this[i].percentageInterruption < 50) {
-            androidOver20++;
-          } else if(this[i].percentageInterruption >= 50 && this[i].percentageInterruption < 80) {
-            androidOver50++;
-          } else if(this[i].percentageInterruption >= 80) {
-            androidOver80++;
-          }
-        } else if(this[i].platform == 'ios') {
-          countIos++;
-          if(this[i].percentageInterruption < 20) {
-            iosUnder20++;
-          } else if(this[i].percentageInterruption >= 20 && this[i].percentageInterruption < 50) {
-            iosOver20++;
-          } else if(this[i].percentageInterruption >= 50 && this[i].percentageInterruption < 80) {
-            iosOver50++;
-          } else if(this[i].percentageInterruption >= 80) {
-            iosOver80++;
-          }
+      interruptionPercentage = this[i].interruptionPercentage;
+      if(this[i].platform == 'android') {
+        countAndroid++;
+        if(interruptionPercentage < 20) {
+          androidUnder20++;
+        } else if(interruptionPercentage >= 20 && interruptionPercentage < 50) {
+          androidOver20++;
+        } else if(interruptionPercentage >= 50 && interruptionPercentage < 80) {
+          androidOver50++;
+        } else if(interruptionPercentage >= 99.93 && interruptionPercentage <= 99.99) {
+          print('stop sync per: $interruptionPercentage');
+          androidStopSync++;
+        } else if(interruptionPercentage >= 80) {
+          androidOver80++;
         }
+      } else if(this[i].platform == 'ios') {
+        countIos++;
+        if(interruptionPercentage < 20) {
+          iosUnder20++;
+        } else if(interruptionPercentage >= 20 && interruptionPercentage < 50) {
+          iosOver20++;
+        } else if(interruptionPercentage >= 50 && interruptionPercentage < 80) {
+          iosOver50++;
+        } else if(interruptionPercentage >= 99.93 && interruptionPercentage <= 99.99) {
+          iosStopSync++;
+        } else if(interruptionPercentage >= 80) {
+          iosOver80++;
+        }
+      }
     }
 
     return'<20: $androidUnder20 android (${(androidUnder20/countAndroid*100).toStringAsFixed(1)}%), $iosUnder20 ios (${(iosUnder20/countIos*100).toStringAsFixed(1)}%)'
         '\n≥20%: $androidOver20 android (${(androidOver20/countAndroid*100).toStringAsFixed(1)}%), $iosOver20 ios (${(iosOver20/countIos*100).toStringAsFixed(1)}%)'
         '\n≥50%: $androidOver50 android (${(androidOver50/countAndroid*100).toStringAsFixed(1)}%), $iosOver50 ios (${(iosOver50/countIos*100).toStringAsFixed(1)}%)'
-        '\n≥80%: $androidOver80 android (${(androidOver80/countAndroid*100).toStringAsFixed(1)}%), $iosOver80 ios (${(iosOver80/countIos*100).toStringAsFixed(1)}%)';
+        '\n≥80%: $androidOver80 android (${(androidOver80/countAndroid*100).toStringAsFixed(1)}%), $iosOver80 ios (${(iosOver80/countIos*100).toStringAsFixed(1)}%)'
+        '\nX: $androidStopSync android (${(androidStopSync/countAndroid*100).toStringAsFixed(1)}%), $iosStopSync ios (${(iosStopSync/countIos*100).toStringAsFixed(1)}%)';
   }
 
   List<double> getPercentageRange(String platform) {
-    double countAndroid = 0;
-    double androidUnder20 = 0;
-    double androidOver20 = 0;
-    double androidOver50 = 0;
-    double androidOver80 = 0;
+    double countUser = 0;
+    double under20 = 0;
+    double over20 = 0;
+    double over50 = 0;
+    double over80 = 0;
+    double stopSync = 0;
 
-    // int countIos = 0;
-    // int iosUnder20 = 0;
-    // int iosOver20 = 0;
-    // int iosOver50 = 0;
-    // int iosOver80 = 0;
-
+    double interruptionPercentage = 0;
     for(int i = 0; i < length; i++) {
+      interruptionPercentage = this[i].interruptionPercentage;
       if(this[i].platform == platform) {
-        countAndroid++;
-        if(this[i].percentageInterruption < 20) {
-          androidUnder20++;
-        } else if(this[i].percentageInterruption >= 20 && this[i].percentageInterruption < 50) {
-          androidOver20++;
-        } else if(this[i].percentageInterruption >= 50 && this[i].percentageInterruption < 80) {
-          androidOver50++;
-        } else if(this[i].percentageInterruption >= 80) {
-          androidOver80++;
+        countUser++;
+        if(interruptionPercentage < 20) {
+          under20++;
+        } else if(interruptionPercentage >= 20 && interruptionPercentage < 50) {
+          over20++;
+        } else if(interruptionPercentage >= 50 && interruptionPercentage < 80) {
+          over50++;
+        } else if(interruptionPercentage >= 99.93 && interruptionPercentage <= 99.99) {
+          stopSync++;
+        } else if(interruptionPercentage >= 80) {
+          over80++;
         }
       }
-      // else if(this[i].platform == 'ios') {
-      //   countIos++;
-      //   if(this[i].percentageInterruption < 20) {
-      //     iosUnder20++;
-      //   } else if(this[i].percentageInterruption >= 20 && this[i].percentageInterruption < 50) {
-      //     iosOver20++;
-      //   } else if(this[i].percentageInterruption >= 50 && this[i].percentageInterruption < 80) {
-      //     iosOver50++;
-      //   } else if(this[i].percentageInterruption >= 80) {
-      //     iosOver80++;
-      //   }
-      // }
     }
 
-    return [androidUnder20, androidOver20, androidOver50, androidOver80];
+    return [under20, over20, over50, over80, stopSync];
   }
 
   // List<UserCGMFile> getPercentageRangeByUser(String platform) {

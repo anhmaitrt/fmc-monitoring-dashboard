@@ -98,7 +98,7 @@ class _DataScreenState extends State<DataScreen> {
     if(files.isEmpty) {
       return const Center(child: Text('Không có dữ liệu'));
     }
-    files.sort((a, b) => a.percentageInterruption < b.percentageInterruption ? 1 : -1);
+    files.sort((a, b) => a.interruptionPercentage < b.interruptionPercentage ? 1 : -1);
     return Card.filled(
       color: AppColors.white,
       child: ExpansionTile(

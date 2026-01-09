@@ -171,7 +171,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final androidPercentageInterruptionRangeList = androidUsers.map((f) => f.getPercentageRange('android')).toList();
     final iosPercentageInterruptionRangeList = iosUsers.map((f) => f.getPercentageRange('ios')).toList();
 
-    final lineColors = [Colors.red.shade200, Colors.red.shade400, Colors.red.shade600, Colors.red.shade900,];
+    final lineColors = [Colors.grey.shade100, Colors.grey.shade400, Colors.red.shade200, Colors.red.shade400, Colors.red.shade900];
     // androidUsers.map((f) {
     //   print('android user: ${f.length} - ${f.getPercentageRange('android')[0]}&');
     //   return '${f.getPercentageRange('android')[0]}%';
@@ -202,8 +202,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 androidPercentageInterruptionRangeList
                     .map((a) => a[3])
                     .toList(),
+                androidPercentageInterruptionRangeList
+                    .map((a) => a[4])
+                    .toList(),
               ],
-              lineTitleList: ['<20%', '≥20%', '≥50%', '≥80%'],
+              lineTitleList: ['<20%', '≥20%', '≥50%', '≥80%', 'X'],
               subToolTipData: [
                 // androidUsers.map((f) => '${f.getPercentageRange('android')[0]}').toList(),
                 // androidUsers.map((f) => '${f.getPercentageRange('android')[1]}%').toList(),
@@ -244,8 +247,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 iosPercentageInterruptionRangeList
                     .map((a) => a[3])
                     .toList(),
+                iosPercentageInterruptionRangeList
+                    .map((a) => a[4])
+                    .toList(),
               ],
-              lineTitleList: ['<20%', '≥20%', '≥50%', '≥80%'],
+              lineTitleList: ['<20%', '≥20%', '≥50%', '≥80%', 'X'],
               subToolTipData: [
                 // androidUsers.map((f) => '${f.getUserWithLongestGap().fullName} (${f.getUserWithLongestGap().totalGapTimeInHour}h)').toList(),
                 // iosUser.map((f) => '${f.getUserWithLongestGap().fullName} (${f.getUserWithLongestGap().totalGapTimeInHour}h)').toList()
