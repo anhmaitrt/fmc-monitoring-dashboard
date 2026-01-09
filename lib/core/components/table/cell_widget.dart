@@ -44,7 +44,6 @@ class CellWidget extends StatelessWidget {
   //#region ACTION
   Future<void> onTap(BuildContext context) async {
     try {
-      print('Copy $text, $enableCopyOnTap');
       if(enableCopyOnTap) {
         await Clipboard.setData(ClipboardData(text: text));
         ToastService.show(context, 'Đã copy $text', type: ToastType.info);

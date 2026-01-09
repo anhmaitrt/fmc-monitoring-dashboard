@@ -27,7 +27,6 @@ class _DataScreenState extends State<DataScreen> {
 
   @override
   Widget build(BuildContext context) {
-    print('Load total ${AnalyticService.instance.dataFiles.length} files for total cgm data');
     return Scaffold(
       appBar: AppBar(
         title: const Text('Chi tiết', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),),
@@ -58,7 +57,7 @@ class _DataScreenState extends State<DataScreen> {
               padding: EdgeInsets.all(16),
               child: Column(
                 children: [
-                  ...AnalyticService.instance.dataFiles.map((files) => _buildTable(_filterRows(files)))
+                  ...AnalyticService.instance.dataFiles.map((files) => _buildTable(files.filter(_query)))
                 ],
               ),
             ),
@@ -218,19 +217,19 @@ class _DataScreenState extends State<DataScreen> {
     }
   }
 
-  List<UserCGMFile> _filterRows(List<UserCGMFile> files) {
-    if (_query.isEmpty) return files;
-
-    bool match(String? s) => (s ?? '').toLowerCase().contains(_query);
-
-    return files.where((f) {
-      return match(f.userId) ||
-          match(f.phoneNumber) ||
-          match(f.fullName) ||
-          match(f.platform) ||
-          match(f.startedAt) ||
-          match(f.stoppedAt);
-    }).toList();
-  }
+  // List<UserCGMFile> _filterRows(List<UserCGMFile> files) {
+  //   if (_query.isEmpty) return files;
+  //
+  //   bool match(String? s) => (s ?? '').toLowerCase().contains(_query);
+  //
+  //   return files.where((f) {
+  //     return match(f.userId) ||
+  //         match(f.phoneNumber) ||
+  //         match(f.fullName) ||
+  //         match(f.platform) ||
+  //         match(f.startedAt) ||
+  //         match(f.stoppedAt);
+  //   }).toList();
+  // }
   //#endregion
 }

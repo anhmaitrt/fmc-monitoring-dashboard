@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fmc_monitoring_dashboard/feature/file/data_screen.dart';
 import 'package:fmc_monitoring_dashboard/feature/home/home_screen.dart';
+import 'package:fmc_monitoring_dashboard/feature/user_details/user_details_screen.dart';
 import 'package:sidebarx/sidebarx.dart';
 
 import '../core/components/side_bar_widget.dart';
@@ -19,7 +20,8 @@ class _AppNavigationWidgetState extends State<AppNavigationWidget> {
 
   final pages = [
     HomeScreen(),
-    DataScreen()
+    DataScreen(),
+    UserDetailsScreen(),
   ];
 
   @override

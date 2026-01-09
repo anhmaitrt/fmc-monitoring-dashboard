@@ -1,0 +1,30 @@
+import 'package:flutter/material.dart';
+
+import '../style/app_colors.dart';
+
+class ScaffoldWidget extends StatelessWidget {
+  const ScaffoldWidget({
+    super.key,
+    required this.body,
+    this.title,
+    this.actions
+  });
+
+  final String? title;
+  final List<Widget>? actions;
+  final Widget body;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(title ?? '', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),),
+        backgroundColor: AppColors.white,
+        surfaceTintColor: AppColors.white,
+        actions: actions,
+      ),
+      backgroundColor: AppColors.backgroundDisable,
+      body: body,
+    );
+  }
+}

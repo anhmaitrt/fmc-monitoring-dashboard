@@ -116,12 +116,16 @@ class SideBarWidget extends StatelessWidget {
           icon: Icons.summarize,
           label: 'Chi tiết',
         ),
-        // SidebarXItem(
-        //   icon: Icons.favorite,
-        //   label: 'Favorites',
-        //   selectable: false,
-        //   onTap: () => _showDisabledAlert(context),
-        // ),
+        const SidebarXItem(
+          icon: Icons.summarize,
+          label: 'Chi tiết khách',
+        ),
+        SidebarXItem(
+          icon: Icons.settings,
+          label: 'Cài đặt',
+          selectable: false,
+          onTap: () => _showDisabledAlert(context),
+        ),
         // const SidebarXItem(
         //   iconWidget: FlutterLogo(size: 20),
         //   label: 'Flutter',
@@ -140,5 +144,9 @@ class SideBarWidget extends StatelessWidget {
         backgroundColor: Colors.white,
       ),
     );
+  }
+
+  void _showSettingsPopup(BuildContext context) {
+
   }
 }

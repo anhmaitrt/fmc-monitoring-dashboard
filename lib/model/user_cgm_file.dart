@@ -9,6 +9,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:json_annotation/json_annotation.dart';
 import 'package:tuple/tuple.dart';
 
+import '../core/services/settings/settings.dart';
 import '../core/utils/extension/list_extension.dart';
 
 part 'user_cgm_file.g.dart';
@@ -206,6 +207,22 @@ extension EUserCGMFile on UserCGMFile {
 }
 
 extension EListTotalCgmFile on List<UserCGMFile> {
+  /// userId | phoneNumber | fullName | platform | startedAt | stoppedAt
+  List<UserCGMFile> filter(String query) {
+    if (query.isEmpty) return this;
+
+    bool match(String? s) => (s ?? '').toLowerCase().contains(query);
+
+    return where((f) {
+      return match(f.userId) ||
+          match(f.phoneNumber) ||
+          match(f.fullName) ||
+          match(f.platform) ||
+          match(f.startedAt) ||
+          match(f.stoppedAt);
+    }).toList();
+  }
+
   int countByPlatform(String platform) {
     var count = 0;
     forEach((d) {
@@ -280,8 +297,7 @@ extension EListTotalCgmFile on List<UserCGMFile> {
           androidOver20++;
         } else if(interruptionPercentage >= 50 && interruptionPercentage < 80) {
           androidOver50++;
-        } else if(interruptionPercentage >= 99.93 && interruptionPercentage <= 99.99) {
-          print('stop sync per: $interruptionPercentage');
+        } else if(interruptionPercentage >= 99.93 && interruptionPercentage <= 99.99 && Settings.filterStopSync) {
           androidStopSync++;
         } else if(interruptionPercentage >= 80) {
           androidOver80++;
@@ -294,7 +310,7 @@ extension EListTotalCgmFile on List<UserCGMFile> {
           iosOver20++;
         } else if(interruptionPercentage >= 50 && interruptionPercentage < 80) {
           iosOver50++;
-        } else if(interruptionPercentage >= 99.93 && interruptionPercentage <= 99.99) {
+        } else if(interruptionPercentage >= 99.93 && interruptionPercentage <= 99.99 && Settings.filterStopSync) {
           iosStopSync++;
         } else if(interruptionPercentage >= 80) {
           iosOver80++;
@@ -328,7 +344,7 @@ extension EListTotalCgmFile on List<UserCGMFile> {
           over20++;
         } else if(interruptionPercentage >= 50 && interruptionPercentage < 80) {
           over50++;
-        } else if(interruptionPercentage >= 99.93 && interruptionPercentage <= 99.99) {
+        } else if(interruptionPercentage >= 99.93 && interruptionPercentage <= 99.99 && Settings.filterStopSync) {
           stopSync++;
         } else if(interruptionPercentage >= 80) {
           over80++;
@@ -395,7 +411,7 @@ extension EListListTotalCgmFile on List<List<UserCGMFile>> {
   }
 
   double? get maxX {
-    return 31;
+    return length <= 31 ? length.toDouble() : 31;
     // final totalIos = map((f) => f.countPlatform('ios').toDouble()).toList();
     // final totalAndroid = map((f) => f.countPlatform('android').toDouble()).toList();
     // final nums = [...totalIos, ...totalAndroid];

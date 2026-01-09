@@ -104,17 +104,18 @@ class LineChartWidget extends StatelessWidget {
               )
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.only(left: 18, top: 16.0),
-          child: RichText(
-            textAlign: TextAlign.start,
-              text: TextSpan(
-                text: lineTitleList[0],
-                style: TextStyle(color: lineColors[0]),
-                children: lineTitleWidget
-              ),
-          ),
-        )
+        if(lineTitleList.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(left: 18, top: 16.0),
+            child: RichText(
+              textAlign: TextAlign.start,
+                text: TextSpan(
+                  text: lineTitleList[0],
+                  style: TextStyle(color: lineColors[0]),
+                  children: lineTitleWidget
+                ),
+            ),
+          )
       ],
     );
   }
