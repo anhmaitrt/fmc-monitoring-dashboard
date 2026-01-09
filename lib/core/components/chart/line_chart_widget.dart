@@ -277,7 +277,6 @@ class LineChartWidget extends StatelessWidget {
   }
 
   SideTitles buildLeftTitles() {
-    print('leftTitles: ${(maxY/8).ceilToDouble()};;; ${(maxY/8).ceilToDouble() <= 10 ? (maxY/8).ceilToDouble() : 10}');
     return SideTitles(
     getTitlesWidget: buildHorizontalWidgets,
     showTitles: true,

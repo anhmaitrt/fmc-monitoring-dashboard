@@ -45,7 +45,7 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
     }
 
     UserCGMFile? user;
-    if(data.every((e) => e.length == 1)) {
+    if(data.every((e) => e.every((f) => f.phoneNumber == _query))) {
       user = data.firstOrNull?.firstOrNull;
     }
 
@@ -87,7 +87,7 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
         controller: _searchCtrl,
         onChanged: (v) => setState(() => _query = v.trim().toLowerCase()),
         decoration: InputDecoration(
-          hintText: 'Nhập từ khóa để tìm kiếm id / phone / name / platform...',
+          hintText: 'Nhập sđt để tìm kiếm',
           prefixIcon: const Icon(Icons.search),
           suffixIcon: _query.isEmpty
               ? null
@@ -192,7 +192,7 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
         lineDataList: [interruptionPercentageList],
         lineTitleList: [],
         subToolTipData: [
-          data.map((f) => '${f.getUserWithLongestGap().fullName} (${f.getUserWithLongestGap().totalGapTimeInHour.toStringAsFixed(1)}h)').toList(),
+          data.map((f) => '${f.getUserWithLongestGap().fullName} (${f.totalGapTimeInHour.toStringAsFixed(1)}h)').toList(),
         ],
         unit: '%',
         lineColors: [Colors.lightBlue.shade400],

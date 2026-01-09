@@ -165,9 +165,16 @@ class _HomeScreenState extends State<HomeScreen> {
     int limit = 14;
     if(data.length >= limit) {
       data.removeRange(0, data.length-limit);
-      androidUsers.removeRange(0, androidUsers.length-limit);
+    }
+
+    if(androidUsers.length >= limit) {
+      androidUsers.removeRange(0, androidUsers.length - limit);
+    }
+
+    if(iosUsers.length >= limit) {
       iosUsers.removeRange(0, iosUsers.length-limit);
     }
+
     final androidPercentageInterruptionRangeList = androidUsers.map((f) => f.getPercentageRange('android')).toList();
     final iosPercentageInterruptionRangeList = iosUsers.map((f) => f.getPercentageRange('ios')).toList();
 

@@ -7,6 +7,7 @@ import 'package:sidebarx/sidebarx.dart';
 import '../core/components/side_bar_widget.dart';
 import '../core/components/toast/loading_widget.dart';
 import '../core/services/analytic_service.dart';
+import 'log/log_screen.dart';
 
 class AppNavigationWidget extends StatefulWidget {
   const AppNavigationWidget({super.key});
@@ -22,6 +23,7 @@ class _AppNavigationWidgetState extends State<AppNavigationWidget> {
     HomeScreen(),
     DataScreen(),
     UserDetailsScreen(),
+    LogScreen(),
   ];
 
   @override
@@ -31,7 +33,40 @@ class _AppNavigationWidgetState extends State<AppNavigationWidget> {
         children: [
           Row(
             children: [
-              SideBarWidget(controller: _controller),
+              SideBarWidget(
+                controller: _controller,
+                items: [
+                  SidebarXItem(
+                    icon: Icons.home,
+                    label: 'Tổng quan',
+                    onTap: () {
+                      debugPrint('Tổng quan');
+                    },
+                  ),
+                  const SidebarXItem(
+                    icon: Icons.summarize,
+                    label: 'Chi tiết',
+                  ),
+                  const SidebarXItem(
+                    icon: Icons.summarize,
+                    label: 'Chi tiết khách',
+                  ),
+                  const SidebarXItem(
+                    icon: Icons.analytics,
+                    label: 'Log kỹ thuật',
+                  ),
+                  SidebarXItem(
+                    icon: Icons.settings,
+                    label: 'Cài đặt',
+                    selectable: false,
+                    onTap: () => _showDisabledAlert(context),
+                  ),
+                  // const SidebarXItem(
+                  //   iconWidget: FlutterLogo(size: 20),
+                  //   label: 'Flutter',
+                  // ),
+                ],
+              ),
               _buildBody(),
             ],
           ),
@@ -53,4 +88,18 @@ class _AppNavigationWidgetState extends State<AppNavigationWidget> {
       ),
     );
   }
+
+  //#region ACTION
+  void _showDisabledAlert(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Item disabled for selecting',
+          style: TextStyle(color: Colors.black),
+        ),
+        backgroundColor: Colors.white,
+      ),
+    );
+  }
+  //#endregion
 }

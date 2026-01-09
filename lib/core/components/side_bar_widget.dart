@@ -8,11 +8,12 @@ class SideBarWidget extends StatelessWidget {
   SideBarWidget({
     Key? key,
     required SidebarXController controller,
+    required this.items,
   })  : _controller = controller,
         super(key: key);
 
   final SidebarXController _controller;
-
+  final List<SidebarXItem> items;
 
   // final primaryColor = Color(0xFF685BFF);
   // final canvasColor = Color(0xFF2E2E48);
@@ -104,33 +105,7 @@ class SideBarWidget extends StatelessWidget {
           height: 16,
         );
       },
-      items: [
-        SidebarXItem(
-          icon: Icons.home,
-          label: 'Tổng quan',
-          onTap: () {
-            debugPrint('Tổng quan');
-          },
-        ),
-        const SidebarXItem(
-          icon: Icons.summarize,
-          label: 'Chi tiết',
-        ),
-        const SidebarXItem(
-          icon: Icons.summarize,
-          label: 'Chi tiết khách',
-        ),
-        SidebarXItem(
-          icon: Icons.settings,
-          label: 'Cài đặt',
-          selectable: false,
-          onTap: () => _showDisabledAlert(context),
-        ),
-        // const SidebarXItem(
-        //   iconWidget: FlutterLogo(size: 20),
-        //   label: 'Flutter',
-        // ),
-      ],
+      items: items,
     );
   }
 
@@ -144,9 +119,5 @@ class SideBarWidget extends StatelessWidget {
         backgroundColor: Colors.white,
       ),
     );
-  }
-
-  void _showSettingsPopup(BuildContext context) {
-
   }
 }

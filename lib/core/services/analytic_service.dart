@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:fmc_monitoring_dashboard/model/log/csv_log_model.dart';
+import 'package:fmc_monitoring_dashboard/model/log/log_file.dart';
+
 import '../../model/user_cgm_file.dart';
 import '../components/toast/model/loading_progress.dart';
 import 'google_drive_service.dart';
@@ -11,6 +14,7 @@ class AnalyticService {
     static AnalyticService instance = AnalyticService._();
 
     final String DATA_FOLDER = '1yMrZnw2BfQsICvu-Cfb44xsEMU3-w9fQ';
+    final String LOGS_FOLDER = '1KRNCAsStiwA3IW1tCtsCCotbZeMNDlAl';
 
     // ⚠️ tune this: 3–10 is typical for web
     final _concurrency = 10;
@@ -19,6 +23,7 @@ class AnalyticService {
     Stream<LoadingProgress> get progressStream => _progressController.stream;
 
     List<List<UserCGMFile>> dataFiles = List.empty(growable: true);
+    List<CSVLogModel> logList = List.empty(growable: true);
 
     void _emit(LoadingProgress p) {
         if (!_progressController.isClosed) _progressController.add(p);
@@ -27,6 +32,7 @@ class AnalyticService {
     Future<void> fetchDB() async {
         try {
             await Future.wait([
+                _fetchLogs(),
                 _fetchUsersCGMData(),
             ]);
 
@@ -41,14 +47,6 @@ class AnalyticService {
             dataFiles.clear();
 
             final rawFiles = await GoogleDriveService.instance.readFolder(DATA_FOLDER);
-
-            // sort files first (optional): newest first by filename date
-            // rawFiles.sort((a, b) {
-            //     final da = _dateFromFileName(a.name);
-            //     final db = _dateFromFileName(b.name);
-            //     if (da == null || db == null) return 0;
-            //     return db.compareTo(da);
-            // });
 
             final total = rawFiles.length;
             var completed = 0;
@@ -108,7 +106,56 @@ class AnalyticService {
         }
     }
 
+    Future<void> _fetchLogs() async {
+        final files = await GoogleDriveService.instance.readFolder(LOGS_FOLDER);
 
+        for (final file in files) {
+            if (!file.name!.endsWith('.csv')) continue;
+
+            final content = await GoogleDriveService.instance.getFileContent(file);
+            final rows = GoogleDriveService.instance.getCsvContent(content);
+
+            if(rows.isEmpty) {
+                return;
+            }
+
+            print('CSV ${file.name} has ${rows.length} rows');
+            // rows.removeRange(2, rows.length);
+            int createdAtColumnIndex = -1;
+            int userIdColumnIndex = -1;
+            int messageColumnIndex = -1;
+            for(int i = 0; i < rows[0].length; i++) {
+                createdAtColumnIndex = rows[0][i] == '@timestamp' ? i : createdAtColumnIndex;
+                messageColumnIndex = rows[0][i] == 'request_body' ? i : messageColumnIndex;
+                userIdColumnIndex = rows[0][i] == 'user_id' ? i : userIdColumnIndex;
+            }
+
+            // Start from 1, skip header row if needed
+            for (int r = 1; r < rows.length; r++) {
+                LogFile? message;
+                final messageJson = messageColumnIndex != -1 ? rows[r][messageColumnIndex] : null;
+                if(messageJson != null) {
+                    final json = jsonDecode(messageJson);
+                    print('json: $json');
+                    if(json is! Map<String, dynamic>) {
+                        message = LogFile.fromJson(json);
+                    }
+                }
+
+                if(message == null) {
+                    print('Row $r missing message');
+                }
+
+                logList.add(CSVLogModel(
+                    createdAt: createdAtColumnIndex != -1 ? rows[r][createdAtColumnIndex] : null,
+                    log: message?.logs.firstOrNull,
+                    userId: userIdColumnIndex != -1 ? rows[r][userIdColumnIndex] : null,
+                ),);
+            }
+
+            print('Fetched ${logList.length} row logs');
+        }
+    }
 
     Future<void> _runPool<T>({
         required List<T> items,

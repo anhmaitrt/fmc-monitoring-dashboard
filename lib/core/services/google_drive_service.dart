@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:csv/csv.dart';
 import 'package:extension_google_sign_in_as_googleapis_auth/extension_google_sign_in_as_googleapis_auth.dart';
 import 'package:fmc_monitoring_dashboard/core/services/toast_service.dart';
 import 'package:fmc_monitoring_dashboard/feature/app.dart';
@@ -77,5 +78,12 @@ class GoogleDriveService {
             ToastService.show('Lỗi đọc file json ${file.name} từ drive, vui lòng thử lại', type: ToastType.error);
             return List.empty();
         }
+    }
+
+    List<List<dynamic>> getCsvContent(String csvContent) {
+        return const CsvToListConverter(
+            eol: '\n',
+            shouldParseNumbers: false,
+        ).convert(csvContent);
     }
 }
