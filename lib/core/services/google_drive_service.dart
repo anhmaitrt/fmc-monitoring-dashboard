@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import 'package:extension_google_sign_in_as_googleapis_auth/extension_google_sign_in_as_googleapis_auth.dart';
+import 'package:fmc_monitoring_dashboard/core/services/toast_service.dart';
+import 'package:fmc_monitoring_dashboard/feature/app.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 
@@ -57,5 +59,23 @@ class GoogleDriveService {
         var content = await utf8.decodeStream(response.stream);
         // print('File ${file.name} content: $content');
         return content;
+    }
+
+    Future<Iterable<Map<String, dynamic>>> getJsonContent(drive.File file) async {
+        try {
+            final content = await getFileContent(file);
+
+            // Decode
+            final decoded = jsonDecode(content);
+
+            if (decoded is! List) {
+                throw Exception('Invalid JSON in ${file.name}: ${decoded.runtimeType}');
+            }
+
+            return decoded.whereType<Map<String, dynamic>>();
+        } catch (error, stackTrace) {
+            ToastService.show('Lỗi đọc file json ${file.name} từ drive, vui lòng thử lại', type: ToastType.error);
+            return List.empty();
+        }
     }
 }

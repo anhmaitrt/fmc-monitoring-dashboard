@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fmc_monitoring_dashboard/core/components/scaffold_widget.dart';
 import 'package:fmc_monitoring_dashboard/core/services/analytic_service.dart';
 import 'package:fmc_monitoring_dashboard/core/services/toast_service.dart';
 import 'package:fmc_monitoring_dashboard/core/routing/router.dart';
@@ -32,14 +33,13 @@ class _LoginScreenState extends State<LoginScreen> {
         print("Authentication event: $event");
 
         if (user == null) {
-          print('Login failed');
           ToastService.show(
-            context, 'Đăng nhập thất bại', type: ToastType.error,);
+            context: context, 'Đăng nhập thất bại', type: ToastType.error,);
           return;
         } else {
           final authenticated = await GoogleDriveService.instance.authorizeUser(user);
           if(!authenticated){
-            ToastService.show(context, 'Không xác thực được Google Drive', type: ToastType.error);
+            ToastService.show(context: context, 'Không xác thực được Google Drive', type: ToastType.error);
             return;
           }
 
@@ -58,11 +58,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Đăng Nhập'),
-        automaticallyImplyLeading: false,
-      ),
+    return ScaffoldWidget(
+      title: 'Đăng Nhập',
+      automaticallyImplyLeading: false,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -76,9 +74,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   //#region ACTION
   Future<void> _onLoginSuccess() async {
-    // ToastService.show(context, 'Đang tải...', type: ToastType.info, duration: null,);
     await AnalyticService.instance.fetchDB();
-    // ToastService.hide();
     context.navigateTo(AppNavigationWidget(), replace: true);
   }
   //#endregion

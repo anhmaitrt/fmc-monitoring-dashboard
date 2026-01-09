@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 
+import '../../feature/app.dart';
+
 enum ToastType { success, error, info, warning }
 
 class ToastService {
@@ -8,8 +10,8 @@ class ToastService {
   static Timer? _timer;
 
   static void show(
-    BuildContext context,
     String message, {
+    BuildContext? context,
     ToastType type = ToastType.info,
     Duration? duration = const Duration(seconds: 2),
     Alignment alignment = Alignment.topRight, // or Alignment.bottomRight
@@ -19,7 +21,7 @@ class ToastService {
     _entry?.remove();
     _entry = null;
 
-    final overlay = Overlay.of(context);
+    final overlay = Overlay.of(context ?? navigatorKey.currentState!.context);
 
     final (bg, icon) = _style(type);
 

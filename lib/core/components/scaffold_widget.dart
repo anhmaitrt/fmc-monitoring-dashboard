@@ -7,12 +7,14 @@ class ScaffoldWidget extends StatelessWidget {
     super.key,
     required this.body,
     this.title,
-    this.actions
+    this.actions,
+    this.automaticallyImplyLeading = true,
   });
 
   final String? title;
   final List<Widget>? actions;
   final Widget body;
+  final bool automaticallyImplyLeading;
 
   @override
   Widget build(BuildContext context) {
@@ -22,6 +24,7 @@ class ScaffoldWidget extends StatelessWidget {
         backgroundColor: AppColors.white,
         surfaceTintColor: AppColors.white,
         actions: actions,
+        automaticallyImplyLeading: automaticallyImplyLeading,
       ),
       backgroundColor: AppColors.backgroundDisable,
       body: body,

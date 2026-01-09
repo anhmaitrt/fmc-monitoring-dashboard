@@ -12,8 +12,8 @@ class AnalyticService {
 
     final String DATA_FOLDER = '1yMrZnw2BfQsICvu-Cfb44xsEMU3-w9fQ';
 
-    // ⚠️ tune this: 3–8 is typical for web
-    final _concurrency = 8;
+    // ⚠️ tune this: 3–10 is typical for web
+    final _concurrency = 10;
 
     final _progressController = StreamController<LoadingProgress>.broadcast();
     Stream<LoadingProgress> get progressStream => _progressController.stream;
@@ -27,7 +27,7 @@ class AnalyticService {
     Future<void> fetchDB() async {
         try {
             await Future.wait([
-                _fetchData(),
+                _fetchUsersCGMData(),
             ]);
 
         } catch (e, stackTrace) {
@@ -36,7 +36,7 @@ class AnalyticService {
         }
     }
 
-    Future<void> _fetchData() async {
+    Future<void> _fetchUsersCGMData() async {
         try {
             dataFiles.clear();
 
@@ -63,24 +63,12 @@ class AnalyticService {
                 concurrency: _concurrency,
                 task: (file, index) async {
                     // Download
-                    final content = await GoogleDriveService.instance.getFileContent(file);
+                    final jsonList = await GoogleDriveService.instance.getJsonContent(file);
 
-                    // Decode
-                    final decoded = jsonDecode(content);
-
-                    if (decoded is! List) {
-                        throw Exception('Invalid JSON in ${file.name}: ${decoded.runtimeType}');
-                    }
-
-                    // Map
-                    final jsonList = decoded.whereType<Map<String, dynamic>>();
                     final models = <UserCGMFile>[];
 
                     for (final j in jsonList) {
                         final model = UserCGMFile.fromJson(j);
-
-                        // If fileName is final in your model, use copyWith instead:
-                        // final model2 = model.copyWith(fileName: file.name);
                         model.fileName = file.name;
 
                         if (!(model.phoneNumber?.contains('demo') ?? false)) {
@@ -120,6 +108,8 @@ class AnalyticService {
         }
     }
 
+
+
     Future<void> _runPool<T>({
         required List<T> items,
         required int concurrency,
@@ -135,5 +125,4 @@ class AnalyticService {
         });
         await Future.wait(workers);
     }
-
 }

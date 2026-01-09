@@ -1,5 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:fmc_monitoring_dashboard/core/utils/extension/string_extension.dart';
 
 import '../../style/app_colors.dart';
 import '../../utils/extension/list_extension.dart';
@@ -65,43 +66,46 @@ class LineChartWidget extends StatelessWidget {
           child: Text(chartName, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),),
         ),
         Expanded(
-          child: LineChart(
-              LineChartData(
-                lineTouchData: lineTouchData1,
-                gridData: const FlGridData(show: false),
-                titlesData: FlTitlesData(
-                  rightTitles: buildAxis(
-                    titles: SideTitles(showTitles: false),
+          child: Padding(
+            padding: EdgeInsets.only(left: leftAxisName.isNullOrEmpty ? 0 : 8),
+            child: LineChart(
+                LineChartData(
+                  lineTouchData: lineTouchData1,
+                  gridData: const FlGridData(show: false),
+                  titlesData: FlTitlesData(
+                    rightTitles: buildAxis(
+                      titles: SideTitles(showTitles: false),
+                    ),
+                    topTitles:buildAxis(
+                      axisName: topAxisName,
+                      titles: buildTopTitles(),
+                    ),
+                    leftTitles: buildAxis(
+                      titles: buildLeftTitles(),
+                      axisName: leftAxisName,
+                    ),
+                    bottomTitles: buildAxis(
+                      titles: buildBottomTitles(),
+                      axisName: bottomAxisName,
+                    ),
                   ),
-                  topTitles:buildAxis(
-                    axisName: topAxisName,
-                    titles: buildTopTitles(),
+                  borderData: FlBorderData(
+                    show: true,
+                    border: Border(
+                      bottom: BorderSide(
+                          color: AppColors.primary.withValues(alpha: 0.2), width: 4),
+                      left: const BorderSide(color: Colors.transparent),
+                      right: const BorderSide(color: Colors.transparent),
+                      top: const BorderSide(color: Colors.transparent),
+                    ),
                   ),
-                  leftTitles: buildAxis(
-                    titles: buildLeftTitles(),
-                    axisName: leftAxisName,
-                  ),
-                  bottomTitles: buildAxis(
-                    titles: buildBottomTitles(),
-                    axisName: bottomAxisName,
-                  ),
-                ),
-                borderData: FlBorderData(
-                  show: true,
-                  border: Border(
-                    bottom: BorderSide(
-                        color: AppColors.primary.withValues(alpha: 0.2), width: 4),
-                    left: const BorderSide(color: Colors.transparent),
-                    right: const BorderSide(color: Colors.transparent),
-                    top: const BorderSide(color: Colors.transparent),
-                  ),
-                ),
-                lineBarsData: barsData,
-                minX: 0,
-                maxX: maxX,
-                maxY: maxY,
-                minY: 0,
-              )
+                  lineBarsData: barsData,
+                  minX: 0,
+                  maxX: maxX,
+                  maxY: maxY,
+                  minY: 0,
+                )
+            ),
           ),
         ),
         if(lineTitleList.isNotEmpty)
@@ -272,12 +276,15 @@ class LineChartWidget extends StatelessWidget {
     );
   }
 
-  SideTitles buildLeftTitles() => SideTitles(
+  SideTitles buildLeftTitles() {
+    print('leftTitles: ${(maxY/8).ceilToDouble()};;; ${(maxY/8).ceilToDouble() <= 10 ? (maxY/8).ceilToDouble() : 10}');
+    return SideTitles(
     getTitlesWidget: buildHorizontalWidgets,
     showTitles: true,
-    interval: (maxY/8).ceilToDouble()/* 20*/,
-    reservedSize: 45,
+    interval: (maxY/8).ceilToDouble() < 7 ? (maxY/8).ceilToDouble() : 10,
+    reservedSize: 35,
   );
+  }
 
   Widget buildHorizontalWidgets(double value, TitleMeta meta) {
     const style = TextStyle(

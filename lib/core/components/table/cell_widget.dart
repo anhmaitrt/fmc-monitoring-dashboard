@@ -46,10 +46,10 @@ class CellWidget extends StatelessWidget {
     try {
       if(enableCopyOnTap) {
         await Clipboard.setData(ClipboardData(text: text));
-        ToastService.show(context, 'Đã copy $text', type: ToastType.info);
+        ToastService.show(context: context, 'Đã copy $text', type: ToastType.info);
       }
     } catch (error, stackTrace) {
-      ToastService.show(context, 'Đã có lỗi xảy ra, vui lòng thử lại', type: ToastType.error);
+      ToastService.show(context: context, 'Đã có lỗi xảy ra, vui lòng thử lại', type: ToastType.error);
     }
   }
   //#endregion

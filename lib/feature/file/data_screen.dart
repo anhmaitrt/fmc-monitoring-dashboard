@@ -210,7 +210,7 @@ class _DataScreenState extends State<DataScreen> {
       });
     } catch (error, stackTrace) {
       print('Failed to refresh total cgm data: $error');
-      ToastService.show(context, 'Đã có lỗi xảy ra, vui lòng thử lại', type: ToastType.error);
+      ToastService.show(context: context, 'Đã có lỗi xảy ra, vui lòng thử lại', type: ToastType.error);
       setState(() {
         _isLoading = false;
       });
