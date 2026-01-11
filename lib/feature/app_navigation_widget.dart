@@ -19,12 +19,19 @@ class AppNavigationWidget extends StatefulWidget {
 class _AppNavigationWidgetState extends State<AppNavigationWidget> {
   final _controller = SidebarXController(selectedIndex: 0, extended: true);
 
-  final pages = [
+  // ✅ Keep ONE instance per page (don’t recreate in build)
+  late final List<Widget> pages = const [
     HomeScreen(),
     DataScreen(),
     UserDetailsScreen(),
     LogScreen(),
   ];
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,9 +46,7 @@ class _AppNavigationWidgetState extends State<AppNavigationWidget> {
                   SidebarXItem(
                     icon: Icons.home,
                     label: 'Tổng quan',
-                    onTap: () {
-                      debugPrint('Tổng quan');
-                    },
+                    onTap: () => debugPrint('Tổng quan'),
                   ),
                   const SidebarXItem(
                     icon: Icons.summarize,
@@ -61,10 +66,6 @@ class _AppNavigationWidgetState extends State<AppNavigationWidget> {
                     selectable: false,
                     onTap: () => _showDisabledAlert(context),
                   ),
-                  // const SidebarXItem(
-                  //   iconWidget: FlutterLogo(size: 20),
-                  //   label: 'Flutter',
-                  // ),
                 ],
               ),
               _buildBody(),
@@ -83,13 +84,15 @@ class _AppNavigationWidgetState extends State<AppNavigationWidget> {
       child: AnimatedBuilder(
         animation: _controller,
         builder: (context, child) {
-          return pages[_controller.selectedIndex];
+          return IndexedStack(
+            index: _controller.selectedIndex,
+            children: pages,
+          );
         },
       ),
     );
   }
 
-  //#region ACTION
   void _showDisabledAlert(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -101,5 +104,5 @@ class _AppNavigationWidgetState extends State<AppNavigationWidget> {
       ),
     );
   }
-  //#endregion
 }
+

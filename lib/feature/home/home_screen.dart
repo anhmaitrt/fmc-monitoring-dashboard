@@ -19,15 +19,32 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   bool _isLoading = false;
 
+  // ✅ Pagination for charts (by DAY / FILE)
+  int _perPage = 30; // how many days shown per page
+  int _pageIndex = 0; // 0-based
+  final List<int> _perPageOptions = const [7, 14, 30, 60, 90];
+
   @override
   Widget build(BuildContext context) {
-    final data = AnalyticService.instance.dataFiles.reversed.toList();
-    final androidUsers = data.splitByPlatform('android');
-    final iosUsers = data.splitByPlatform('ios');
+    // Keep original data stable (do not mutate)
+    final all = List<List<UserCGMFile>>.from(AnalyticService.instance.dataFiles);
+
+    // In your old code you used reversed(). That means you want oldest->newest for the chart.
+    // We'll keep that behavior AFTER paging.
+    final asc = all.reversed.toList(); // oldest -> newest
+
+    final page = _paginate(asc);
+
+    // For platform splits, do it based on *paged data*
+    final androidUsers = page.splitByPlatform('android');
+    final iosUsers = page.splitByPlatform('ios');
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Tổng quan', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),),
+        title: const Text(
+          'Tổng quan',
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
         backgroundColor: AppColors.white,
         surfaceTintColor: AppColors.white,
         actions: [
@@ -43,7 +60,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 key: ValueKey(_isLoading),
               ),
             ),
-          )
+          ),
         ],
       ),
       backgroundColor: AppColors.backgroundDisable,
@@ -54,20 +71,24 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.max,
             children: [
+              _buildChartPagingBar(totalItems: asc.length),
+
+              const SizedBox(height: 12),
+
               SizedBox(
                 height: 350,
-                child: _buildTotalCGMChart(data, androidUsers, iosUsers)
+                child: _buildTotalCGMChart(page, androidUsers, iosUsers),
               ),
               Container(
                 height: 350,
-                margin: EdgeInsets.only(top: 16),
-                child: _buildInterruptionChart(data, androidUsers, iosUsers)
+                margin: const EdgeInsets.only(top: 16),
+                child: _buildInterruptionChart(page, androidUsers, iosUsers),
               ),
               Container(
                 height: 380,
-                margin: EdgeInsets.only(top: 16),
-                child: _buildInterruptionByPercentageRange(data, androidUsers, iosUsers)
-              )
+                margin: const EdgeInsets.only(top: 16),
+                child: _buildInterruptionByPercentageRange(page, androidUsers, iosUsers),
+              ),
             ],
           ),
         ),
@@ -75,12 +96,104 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  //#region UI
+  // -----------------------
+  // PAGINATION CORE
+  // -----------------------
+
+  int _totalPages(int totalItems) {
+    if (totalItems == 0) return 1;
+    return (totalItems / _perPage).ceil();
+  }
+
+  List<List<UserCGMFile>> _paginate(List<List<UserCGMFile>> ascOldestToNewest) {
+    if (ascOldestToNewest.isEmpty) return const [];
+
+    final total = ascOldestToNewest.length;
+    final pages = _totalPages(total);
+
+    // clamp current page to valid range
+    final pageIndex = _pageIndex.clamp(0, pages - 1);
+    if (pageIndex != _pageIndex) {
+      // keep state consistent if data size changed
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _pageIndex = pageIndex);
+      });
+    }
+
+    final start = pageIndex * _perPage;
+    if (start >= total) return const [];
+
+    final end = min(start + _perPage, total);
+    return ascOldestToNewest.sublist(start, end);
+  }
+
+  Widget _buildChartPagingBar({required int totalItems}) {
+    final pages = _totalPages(totalItems);
+
+    final start = totalItems == 0 ? 0 : (_pageIndex * _perPage) + 1;
+    final end = totalItems == 0
+        ? 0
+        : min((_pageIndex * _perPage) + _perPage, totalItems);
+
+    return Card.filled(
+      color: AppColors.white,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: [
+            Text('Trang ${_pageIndex + 1} / $pages · Hiển thị $start–$end / $totalItems ngày'),
+            const Spacer(),
+            const Text('Days/page: '),
+            const SizedBox(width: 8),
+            DropdownButton<int>(
+              value: _perPage,
+              items: _perPageOptions
+                  .map((v) => DropdownMenuItem(value: v, child: Text('$v')))
+                  .toList(),
+              onChanged: (v) {
+                if (v == null) return;
+                setState(() {
+                  _perPage = v;
+                  _pageIndex = 0; // reset to first page
+                });
+              },
+            ),
+            const SizedBox(width: 8),
+            IconButton(
+              tooltip: 'First',
+              onPressed: (_pageIndex <= 0) ? null : () => setState(() => _pageIndex = 0),
+              icon: const Icon(Icons.first_page),
+            ),
+            IconButton(
+              tooltip: 'Prev',
+              onPressed: (_pageIndex <= 0) ? null : () => setState(() => _pageIndex--),
+              icon: const Icon(Icons.chevron_left),
+            ),
+            IconButton(
+              tooltip: 'Next',
+              onPressed: (_pageIndex >= pages - 1) ? null : () => setState(() => _pageIndex++),
+              icon: const Icon(Icons.chevron_right),
+            ),
+            IconButton(
+              tooltip: 'Last',
+              onPressed: (_pageIndex >= pages - 1) ? null : () => setState(() => _pageIndex = pages - 1),
+              icon: const Icon(Icons.last_page),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // -----------------------
+  // CHART CONTAINERS
+  // -----------------------
+
   Widget _buildChart({required Widget chart}) {
     return Card.filled(
       color: AppColors.white,
       child: Padding(
-        padding: EdgeInsets.symmetric(vertical: 16.0),
+        padding: const EdgeInsets.symmetric(vertical: 16.0),
         child: chart,
       ),
     );
@@ -90,18 +203,18 @@ class _HomeScreenState extends State<HomeScreen> {
       List<List<UserCGMFile>> data,
       List<List<UserCGMFile>> androidUsers,
       List<List<UserCGMFile>> iosUser,
-  ) {
-    int limit = 30;
-    if(data.length >= limit) {
-      data.removeRange(0, data.length-limit);
-      androidUsers.removeRange(0, androidUsers.length-limit);
-      iosUser.removeRange(0, iosUser.length-limit);
+      ) {
+    if (data.isEmpty) {
+      return _buildChart(
+        chart: const Center(child: Text('Không có dữ liệu')),
+      );
     }
 
     final topTitles = <String>[];
-    for(int i = 0; i < data.length; i++) {
+    for (int i = 0; i < data.length; i++) {
       topTitles.add((androidUsers.count()[i] + iosUser.count()[i]).toString());
     }
+
     return _buildChart(
       chart: LineChartWidget(
         chartName: 'Số lượng khách dùng CGM',
@@ -110,12 +223,12 @@ class _HomeScreenState extends State<HomeScreen> {
         topTitles: topTitles,
         topAxisName: 'Tổng khách',
         bottomTitles: data.toDateList(),
-        leftTitles: [],
+        leftTitles: const [],
         leftAxisName: 'Số lượng theo platform',
         lineDataList: [androidUsers.count(), iosUser.count()],
-        lineTitleList: ['android', 'ios'],
-        subToolTipData: [],
-        lineColors: [Colors.lightBlue.shade400, Colors.pinkAccent.shade100],
+        lineTitleList: const ['android', 'ios'],
+        subToolTipData: const [],
+        lineColors: [Colors.lightBlue, Colors.pinkAccent],
       ),
     );
   }
@@ -124,36 +237,46 @@ class _HomeScreenState extends State<HomeScreen> {
       List<List<UserCGMFile>> data,
       List<List<UserCGMFile>> androidUsers,
       List<List<UserCGMFile>> iosUser,
-  ) {
-    int limit = 30;
-    if(data.length >= limit) {
-      data.removeRange(0, data.length-limit);
-      androidUsers.removeRange(0, androidUsers.length-limit);
-      iosUser.removeRange(0, iosUser.length-limit);
+      ) {
+    if (data.isEmpty) {
+      return _buildChart(
+        chart: const Center(child: Text('Không có dữ liệu')),
+      );
     }
-    final androidPercentageInterruptionList = androidUsers.map((f) => f.percentageInterruption).toList();
-    final iosPercentageInterruptionList = iosUser.map((f) => f.percentageInterruption).toList();
 
-    // print('android user: ${androidUsers.length} - $androidPercentageInterruptionList'
-    //     '\nios user: ${iosUser.length} - $iosPercentageInterruptionList');
+    final androidPercentageInterruptionList =
+    androidUsers.map((f) => f.percentageInterruption).toList();
+    final iosPercentageInterruptionList =
+    iosUser.map((f) => f.percentageInterruption).toList();
+
+    final maxY = [...androidPercentageInterruptionList, ...iosPercentageInterruptionList].isEmpty
+        ? 0.0
+        : [...androidPercentageInterruptionList, ...iosPercentageInterruptionList].reduce(max);
+
     return _buildChart(
-        chart: LineChartWidget(
-          chartName: 'Tỉ lệ chậm đồng bộ theo ngày',
-          maxX: data.maxX,
-          maxY: [...androidPercentageInterruptionList, ...iosPercentageInterruptionList].reduce(max),
-          topTitles: [],
-          bottomTitles: data.toDateList(),
-          leftTitles: [],
-          leftAxisName: '%',
-          lineDataList: [androidPercentageInterruptionList, iosPercentageInterruptionList],
-          lineTitleList: ['android', 'ios'],
-          subToolTipData: [
-            androidUsers.map((f) => '${f.getUserWithLongestGap().fullName} (${f.getUserWithLongestGap().totalGapTimeInHour.toStringAsFixed(1)}h)').toList(),
-            iosUser.map((f) => '${f.getUserWithLongestGap().fullName} (${f.getUserWithLongestGap().totalGapTimeInHour.toStringAsFixed(1)}h)').toList()
-          ],
-          unit: '%',
-          lineColors: [Colors.lightBlue.shade400, Colors.pinkAccent.shade100],
-        )
+      chart: LineChartWidget(
+        chartName: 'Tỉ lệ chậm đồng bộ theo ngày',
+        maxX: data.maxX,
+        maxY: maxY,
+        topTitles: const [],
+        bottomTitles: data.toDateList(),
+        leftTitles: const [],
+        leftAxisName: '%',
+        lineDataList: [androidPercentageInterruptionList, iosPercentageInterruptionList],
+        lineTitleList: const ['android', 'ios'],
+        subToolTipData: [
+          androidUsers
+              .map((f) => '${f.getUserWithLongestGap().fullName} '
+              '(${f.getUserWithLongestGap().totalGapTimeInHour.toStringAsFixed(1)}h)')
+              .toList(),
+          iosUser
+              .map((f) => '${f.getUserWithLongestGap().fullName} '
+              '(${f.getUserWithLongestGap().totalGapTimeInHour.toStringAsFixed(1)}h)')
+              .toList(),
+        ],
+        unit: '%',
+        lineColors: [Colors.lightBlue, Colors.pinkAccent],
+      ),
     );
   }
 
@@ -161,108 +284,87 @@ class _HomeScreenState extends State<HomeScreen> {
       List<List<UserCGMFile>> data,
       List<List<UserCGMFile>> androidUsers,
       List<List<UserCGMFile>> iosUsers,
-  ) {
-    int limit = 14;
-    if(data.length >= limit) {
-      data.removeRange(0, data.length-limit);
+      ) {
+    if (data.isEmpty) {
+      return _buildChart(
+        chart: const Center(child: Text('Không có dữ liệu')),
+      );
     }
 
-    if(androidUsers.length >= limit) {
-      androidUsers.removeRange(0, androidUsers.length - limit);
+    // NOTE: This chart previously forced limit=14. With paging, you can just rely on _perPage.
+    // If you still want to force at most 14 points for readability, keep this:
+    const hardCap = 14;
+    final cappedData = data.length > hardCap ? data.sublist(data.length - hardCap) : data;
+    final cappedAndroid = androidUsers.length > hardCap ? androidUsers.sublist(androidUsers.length - hardCap) : androidUsers;
+    final cappedIos = iosUsers.length > hardCap ? iosUsers.sublist(iosUsers.length - hardCap) : iosUsers;
+
+    final androidRanges = cappedAndroid.map((f) => f.getPercentageRange('android')).toList();
+    final iosRanges = cappedIos.map((f) => f.getPercentageRange('ios')).toList();
+
+    double maxAndroid = 0;
+    if (androidRanges.isNotEmpty) {
+      maxAndroid = androidRanges.map((a) => a.reduce(max)).reduce(max).toDouble();
     }
 
-    if(iosUsers.length >= limit) {
-      iosUsers.removeRange(0, iosUsers.length-limit);
+    double maxIos = 0;
+    if (iosRanges.isNotEmpty) {
+      maxIos = iosRanges.map((a) => a.reduce(max)).reduce(max).toDouble();
     }
 
-    final androidPercentageInterruptionRangeList = androidUsers.map((f) => f.getPercentageRange('android')).toList();
-    final iosPercentageInterruptionRangeList = iosUsers.map((f) => f.getPercentageRange('ios')).toList();
+    final lineColors = [
+      Colors.grey.shade200,
+      Colors.grey.shade400,
+      Colors.red.shade200,
+      Colors.red.shade400,
+      Colors.red.shade900,
+    ];
 
-    final lineColors = [Colors.grey.shade100, Colors.grey.shade400, Colors.red.shade200, Colors.red.shade400, Colors.red.shade900];
-    // androidUsers.map((f) {
-    //   print('android user: ${f.length} - ${f.getPercentageRange('android')[0]}&');
-    //   return '${f.getPercentageRange('android')[0]}%';
-    // }).toList();
     return Row(
       children: [
         Expanded(
           child: _buildChart(
             chart: LineChartWidget(
               chartName: 'Mật độ chậm đồng bộ Android',
-              maxX: limit.toDouble(),
-              maxY: androidPercentageInterruptionRangeList.map((a) => a.reduce(max)).toList().reduce(max),
+              maxX: cappedData.length.toDouble(),
+              maxY: maxAndroid,
               topAxisName: 'Số lượng khách',
-              topTitles: androidUsers.map((f) => '${f.length}').toList(),
-              bottomTitles: data.toDateList(),
-              // leftAxisName: '%',
-              leftTitles: [],
+              topTitles: cappedAndroid.map((f) => '${f.length}').toList(),
+              bottomTitles: cappedData.toDateList(),
+              leftTitles: const [],
               lineDataList: [
-                androidPercentageInterruptionRangeList
-                    .map((a) => a[0])
-                    .toList(),
-                androidPercentageInterruptionRangeList
-                    .map((a) => a[1])
-                    .toList(),
-                androidPercentageInterruptionRangeList
-                    .map((a) => a[2])
-                    .toList(),
-                androidPercentageInterruptionRangeList
-                    .map((a) => a[3])
-                    .toList(),
-                androidPercentageInterruptionRangeList
-                    .map((a) => a[4])
-                    .toList(),
+                androidRanges.map((a) => a[0].toDouble()).toList(),
+                androidRanges.map((a) => a[1].toDouble()).toList(),
+                androidRanges.map((a) => a[2].toDouble()).toList(),
+                androidRanges.map((a) => a[3].toDouble()).toList(),
+                androidRanges.map((a) => a[4].toDouble()).toList(),
               ],
-              lineTitleList: ['<20%', '≥20%', '≥50%', '≥80%', 'Ngưng đồng bộ'],
-              subToolTipData: [
-                // androidUsers.map((f) => '${f.getPercentageRange('android')[0]}').toList(),
-                // androidUsers.map((f) => '${f.getPercentageRange('android')[1]}%').toList(),
-                // androidUsers.map((f) => '${f.getPercentageRange('android')[2]}%').toList(),
-                // androidUsers.map((f) => '${f.getPercentageRange('android')[3]}%').toList(),
-                // androidPercentageInterruptionRangeList
-                //     .map((a) => '${a[0]}')
-                //     .toList()
-                // iosUser.map((f) => '${f.getUserWithLongestGap().fullName} (${f.getUserWithLongestGap().totalGapTimeInHour}h)').toList()
-              ],
+              lineTitleList: const ['<20%', '≥20%', '≥50%', '≥80%', 'Ngưng đồng bộ'],
+              subToolTipData: const [],
               unit: ' khách',
               lineColors: lineColors,
             ),
           ),
         ),
-        SizedBox(width: 16,),
+        const SizedBox(width: 16),
         Expanded(
           child: _buildChart(
             chart: LineChartWidget(
               chartName: 'Mật độ chậm đồng bộ iOS',
-              maxX: limit.toDouble(),
-              maxY: iosPercentageInterruptionRangeList.map((a) => a.reduce(max)).toList().reduce(max),
-              topTitles: iosUsers.map((f) => '${f.length}').toList(),
+              maxX: cappedData.length.toDouble(),
+              maxY: maxIos,
+              topTitles: cappedIos.map((f) => '${f.length}').toList(),
               topAxisName: 'Số lượng khách',
-              bottomTitles: data.toDateList(),
-              // leftAxisName: '%',
-              leftTitles: [],
+              bottomTitles: cappedData.toDateList(),
+              leftTitles: const [],
               lineDataList: [
-                iosPercentageInterruptionRangeList
-                    .map((a) => a[0])
-                    .toList(),
-                iosPercentageInterruptionRangeList
-                    .map((a) => a[1])
-                    .toList(),
-                iosPercentageInterruptionRangeList
-                    .map((a) => a[2])
-                    .toList(),
-                iosPercentageInterruptionRangeList
-                    .map((a) => a[3])
-                    .toList(),
-                iosPercentageInterruptionRangeList
-                    .map((a) => a[4])
-                    .toList(),
+                iosRanges.map((a) => a[0].toDouble()).toList(),
+                iosRanges.map((a) => a[1].toDouble()).toList(),
+                iosRanges.map((a) => a[2].toDouble()).toList(),
+                iosRanges.map((a) => a[3].toDouble()).toList(),
+                iosRanges.map((a) => a[4].toDouble()).toList(),
               ],
-              lineTitleList: ['<20%', '≥20%', '≥50%', '≥80%', 'Ngưng đồng bộ'],
-              subToolTipData: [
-                // androidUsers.map((f) => '${f.getUserWithLongestGap().fullName} (${f.getUserWithLongestGap().totalGapTimeInHour}h)').toList(),
-                // iosUser.map((f) => '${f.getUserWithLongestGap().fullName} (${f.getUserWithLongestGap().totalGapTimeInHour}h)').toList()
-              ],
+              lineTitleList: const ['<20%', '≥20%', '≥50%', '≥80%', 'Ngưng đồng bộ'],
+              subToolTipData: const [],
               unit: ' khách',
               lineColors: lineColors,
             ),
@@ -271,28 +373,27 @@ class _HomeScreenState extends State<HomeScreen> {
       ],
     );
   }
-  //#endregion
 
-  //#region ACTION
+  // -----------------------
+  // ACTION
+  // -----------------------
+
   Future<void> _fetchData() async {
     try {
-      print('Loading total cgm data');
-      setState(() {
-        // ToastService.show(context, 'Đang tải...', type: ToastType.info, duration: null,);
-        _isLoading = true;
-      });
+      setState(() => _isLoading = true);
       await AnalyticService.instance.fetchDB();
       setState(() {
         _isLoading = false;
-        // ToastService.show(context, 'Tải xong ${AnalyticService.instance.dataFiles.length} file(s)', type: ToastType.success);
+        _pageIndex = 0; // reset chart paging after refresh
       });
     } catch (error, stackTrace) {
-      print('Failed to refresh total cgm data: $error');
-      ToastService.show(context: context, 'Đã có lỗi xảy ra, vui lòng thử lại', type: ToastType.error);
-      setState(() {
-        _isLoading = false;
-      });
+      debugPrint('Failed to refresh total cgm data: $error\n$stackTrace');
+      ToastService.show(
+        context: context,
+        'Đã có lỗi xảy ra, vui lòng thử lại',
+        type: ToastType.error,
+      );
+      setState(() => _isLoading = false);
     }
   }
-  //#endregion
 }
