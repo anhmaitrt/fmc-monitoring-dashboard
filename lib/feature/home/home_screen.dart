@@ -213,7 +213,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     .map((a) => a[4])
                     .toList(),
               ],
-              lineTitleList: ['<20%', '≥20%', '≥50%', '≥80%', 'X'],
+              lineTitleList: ['<20%', '≥20%', '≥50%', '≥80%', 'Ngưng đồng bộ'],
               subToolTipData: [
                 // androidUsers.map((f) => '${f.getPercentageRange('android')[0]}').toList(),
                 // androidUsers.map((f) => '${f.getPercentageRange('android')[1]}%').toList(),
@@ -258,7 +258,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     .map((a) => a[4])
                     .toList(),
               ],
-              lineTitleList: ['<20%', '≥20%', '≥50%', '≥80%', 'X'],
+              lineTitleList: ['<20%', '≥20%', '≥50%', '≥80%', 'Ngưng đồng bộ'],
               subToolTipData: [
                 // androidUsers.map((f) => '${f.getUserWithLongestGap().fullName} (${f.getUserWithLongestGap().totalGapTimeInHour}h)').toList(),
                 // iosUser.map((f) => '${f.getUserWithLongestGap().fullName} (${f.getUserWithLongestGap().totalGapTimeInHour}h)').toList()
