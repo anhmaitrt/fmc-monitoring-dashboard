@@ -16,8 +16,14 @@ class DataScreen extends StatefulWidget {
 
 class _DataScreenState extends State<DataScreen> {
   bool _isLoading = false;
+
   final _searchCtrl = TextEditingController();
   String _query = '';
+
+  // ✅ Pagination state
+  int _rowsPerPage = 10;
+  int _pageIndex = 0; // 0-based
+  final List<int> _rowsPerPageOptions = const [5, 10, 20, 50, 100];
 
   @override
   void dispose() {
@@ -25,11 +31,60 @@ class _DataScreenState extends State<DataScreen> {
     super.dispose();
   }
 
+  // -----------------------
+  // PAGINATION HELPERS
+  // -----------------------
+
+  /// Apply search to each group and remove empty groups
+  List<List<UserCGMFile>> get _filteredGroups {
+    final groups = AnalyticService.instance.dataFiles;
+
+    return groups
+        .map((g) => g.filter(_query))
+        .where((g) => g.isNotEmpty)
+        .toList();
+  }
+
+  int get _totalItems => _filteredGroups.length;
+
+  int get _totalPages {
+    if (_totalItems == 0) return 1;
+    return (_totalItems / _rowsPerPage).ceil();
+  }
+
+  List<List<UserCGMFile>> get _pagedGroups {
+    final list = _filteredGroups;
+    if (list.isEmpty) return const [];
+
+    final start = _pageIndex * _rowsPerPage;
+    if (start >= list.length) return const [];
+
+    final end = (start + _rowsPerPage).clamp(0, list.length);
+    return list.sublist(start, end);
+  }
+
+  void _goToPage(int newIndex) {
+    setState(() {
+      _pageIndex = newIndex.clamp(0, _totalPages - 1);
+    });
+  }
+
+  void _resetPaging() {
+    setState(() => _pageIndex = 0);
+  }
+
+  // -----------------------
+  // UI
+  // -----------------------
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Chi tiết', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),),
+        title: const Text(
+          'Chi tiết',
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
         backgroundColor: AppColors.white,
         surfaceTintColor: AppColors.white,
         actions: [
@@ -45,7 +100,7 @@ class _DataScreenState extends State<DataScreen> {
                 key: ValueKey(_isLoading),
               ),
             ),
-          )
+          ),
         ],
       ),
       backgroundColor: AppColors.backgroundDisable,
@@ -54,27 +109,32 @@ class _DataScreenState extends State<DataScreen> {
           _buildSearchBar(),
           Expanded(
             child: SingleChildScrollView(
-              padding: EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  ...AnalyticService.instance.dataFiles.map((files) => _buildTable(files.filter(_query)))
+                  ..._pagedGroups.map((files) => _buildTable(files)),
                 ],
               ),
             ),
           ),
+          _buildPaginationBar(),
         ],
       ),
     );
   }
 
-  //#region UI
   Widget _buildSearchBar() {
     return Container(
       color: AppColors.white,
       padding: const EdgeInsets.all(16),
       child: TextField(
         controller: _searchCtrl,
-        onChanged: (v) => setState(() => _query = v.trim().toLowerCase()),
+        onChanged: (v) {
+          setState(() {
+            _query = v.trim().toLowerCase();
+            _pageIndex = 0; // ✅ reset page when searching
+          });
+        },
         decoration: InputDecoration(
           hintText: 'Nhập từ khóa để tìm kiếm id / phone / name / platform...',
           prefixIcon: const Icon(Icons.search),
@@ -84,7 +144,10 @@ class _DataScreenState extends State<DataScreen> {
             icon: const Icon(Icons.clear),
             onPressed: () {
               _searchCtrl.clear();
-              setState(() => _query = '');
+              setState(() {
+                _query = '';
+                _pageIndex = 0; // ✅ reset page when clearing
+              });
             },
           ),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -93,68 +156,119 @@ class _DataScreenState extends State<DataScreen> {
     );
   }
 
+  Widget _buildPaginationBar() {
+    final total = _totalItems;
+    final start = total == 0 ? 0 : (_pageIndex * _rowsPerPage) + 1;
+    final end = total == 0 ? 0 : ((_pageIndex * _rowsPerPage) + _pagedGroups.length);
+
+    return Container(
+      color: AppColors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        children: [
+          Text('Trang ${_pageIndex + 1} / $_totalPages · Hiển thị $start–$end / $total'),
+          const Spacer(),
+          const Text('Rows/page: '),
+          const SizedBox(width: 8),
+          DropdownButton<int>(
+            value: _rowsPerPage,
+            items: _rowsPerPageOptions
+                .map((v) => DropdownMenuItem(value: v, child: Text('$v')))
+                .toList(),
+            onChanged: (v) {
+              if (v == null) return;
+              setState(() {
+                _rowsPerPage = v;
+                _pageIndex = 0; // ✅ reset to first page
+              });
+            },
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            tooltip: 'First',
+            onPressed: (_pageIndex <= 0) ? null : () => _goToPage(0),
+            icon: const Icon(Icons.first_page),
+          ),
+          IconButton(
+            tooltip: 'Prev',
+            onPressed: (_pageIndex <= 0) ? null : () => _goToPage(_pageIndex - 1),
+            icon: const Icon(Icons.chevron_left),
+          ),
+          IconButton(
+            tooltip: 'Next',
+            onPressed: (_pageIndex >= _totalPages - 1)
+                ? null
+                : () => _goToPage(_pageIndex + 1),
+            icon: const Icon(Icons.chevron_right),
+          ),
+          IconButton(
+            tooltip: 'Last',
+            onPressed: (_pageIndex >= _totalPages - 1)
+                ? null
+                : () => _goToPage(_totalPages - 1),
+            icon: const Icon(Icons.last_page),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTable(List<UserCGMFile> files) {
-    if(files.isEmpty) {
+    if (files.isEmpty) {
       return const Center(child: Text('Không có dữ liệu'));
     }
-    files.sort((a, b) => a.interruptionPercentage < b.interruptionPercentage ? 1 : -1);
+
+    // ✅ avoid mutating original list
+    final sorted = [...files]
+      ..sort((a, b) => a.interruptionPercentage < b.interruptionPercentage ? 1 : -1);
+
     return Card.filled(
       color: AppColors.white,
       child: ExpansionTile(
-        title: Text('${files.firstOrNull?.dateTime?.formatddMMyyyy}: ${files.length} khách (${files.countByPlatform('android')} android, ${files.countByPlatform('ios')} ios)', style: TextStyle(fontWeight: FontWeight.bold),),
-        subtitle: Text(files.summarizeSyncGaps(), style: TextStyle(
-          fontSize: 14,
-        ),),
+        title: Text(
+          '${sorted.firstOrNull?.dateTime?.formatddMMyyyy}: ${sorted.length} khách '
+              '(${sorted.countByPlatform('android')} android, ${sorted.countByPlatform('ios')} ios)',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        subtitle: Text(
+          sorted.summarizeSyncGaps(),
+          style: const TextStyle(fontSize: 14),
+        ),
         children: [
           Table(
             border: TableBorder.all(color: Colors.black),
-            columnWidths: {
+            columnWidths: const {
               0: FlexColumnWidth(0.8), //Id
               1: FlexColumnWidth(0.4), //SDT
-              2: FlexColumnWidth(0.4),
-              3: FlexColumnWidth(0.4),
-              4: FlexColumnWidth(0.8),
+              2: FlexColumnWidth(0.4), //Name
+              3: FlexColumnWidth(0.4), //Platform
+              4: FlexColumnWidth(0.8), //Session
             },
             children: [
               TableRow(
                 decoration: BoxDecoration(color: Colors.grey[300]),
-                children: [
-                  CellWidget(
-                    text: "Id",
-                    enableCopyOnTap: false,
-                  ),
-                  CellWidget(text: "Số Điện Thoại",
-                    enableCopyOnTap: false,),
-                  CellWidget(text: "Họ Tên",
-                    enableCopyOnTap: false,),
-                  CellWidget(text: "Platform",
-                    enableCopyOnTap: false,),
-                  CellWidget(text: 'Ngày Bắt Đầu - Kết Thúc',
-                    enableCopyOnTap: false,),
-                  CellWidget(text: 'Khoảng chậm',
-                    enableCopyOnTap: false,),
+                children: const [
+                  CellWidget(text: "Id", enableCopyOnTap: false),
+                  CellWidget(text: "Số Điện Thoại", enableCopyOnTap: false),
+                  CellWidget(text: "Họ Tên", enableCopyOnTap: false),
+                  CellWidget(text: "Platform", enableCopyOnTap: false),
+                  CellWidget(text: 'Ngày Bắt Đầu - Kết Thúc', enableCopyOnTap: false),
+                  CellWidget(text: 'Khoảng chậm', enableCopyOnTap: false),
                 ],
               ),
-              // Data rows
-              ...files.map((file) {
+              ...sorted.map((file) {
                 return TableRow(
-                  decoration: (file.isDeleted ?? false) ? BoxDecoration(color: AppColors.disableText) : null,
+                  decoration: (file.isDeleted ?? false)
+                      ? const BoxDecoration(color: AppColors.disableText)
+                      : null,
                   children: [
+                    CellWidget(text: file.userId ?? ''),
+                    CellWidget(text: file.phoneNumber ?? ''),
+                    CellWidget(text: file.fullName ?? ''),
+                    CellWidget(text: file.platform ?? '', enableCopyOnTap: false),
                     CellWidget(
-                      text: file.userId ?? '',
-                    ),
-                    CellWidget(
-                      text: file.phoneNumber ?? '',
-                    ),
-                    CellWidget(
-                      text: file.fullName ?? '',
-                    ),
-                    CellWidget(
-                      text: file.platform ?? '',
-                      enableCopyOnTap: false,
-                    ),
-                    CellWidget(
-                      text: 'Đã dùng ${file.currentSessionDuration.inDays} ngày\n${file.startedAt} - ${file.stoppedAt}',
+                      text:
+                      'Đã dùng ${file.currentSessionDuration.inDays} ngày\n${file.startedAt} - ${file.stoppedAt}',
                       enableCopyOnTap: false,
                     ),
                     CellWidget(
@@ -163,73 +277,36 @@ class _DataScreenState extends State<DataScreen> {
                     ),
                   ],
                 );
-              })
+              }),
             ],
-          )
+          ),
         ],
       ),
     );
   }
 
-  // Widget _buildPaginatedDataTable() {
-  //   return PaginatedDataTable(
-  //     header: const Text('Tổng khách dùng CGM'),
-  //     rowsPerPage: 50,
-  //     availableRowsPerPage: const [10, 25, 50, 100],
-  //     onRowsPerPageChanged: (v) {
-  //       if (v == null) return;
-  //       // setState(() => _rowsPerPage = v);
-  //     },
-  //     columns: const [
-  //       DataColumn(label: Text('User ID')),
-  //       DataColumn(label: Text('Số Điện Thoại')),
-  //       DataColumn(label: Text('Họ Tên')),
-  //       DataColumn(label: Text('Platform')),
-  //       DataColumn(label: Text('Đã Xóa')),
-  //       DataColumn(label: Text('Bắt đầu')),
-  //       DataColumn(label: Text('Kết thúc')),
-  //       DataColumn(label: Text('Sync gaps')),
-  //     ],
-  //     source: source,
-  //   );
-  // }
-  //#endregion
+  // -----------------------
+  // ACTION
+  // -----------------------
 
-  //#region ACTION
   Future<void> _fetchData() async {
     try {
-      print('Loading total cgm data');
-      setState(() {
-        // ToastService.show(context, 'Đang tải...', type: ToastType.info, duration: null,);
-        _isLoading = true;
-      });
+      setState(() => _isLoading = true);
+
       await AnalyticService.instance.fetchDB();
+
       setState(() {
         _isLoading = false;
-        // ToastService.show(context, 'Tải xong ${AnalyticService.instance.dataFiles.length} file(s)', type: ToastType.success);
+        _pageIndex = 0; // ✅ reset paging after reload
       });
     } catch (error, stackTrace) {
-      print('Failed to refresh total cgm data: $error');
-      ToastService.show(context: context, 'Đã có lỗi xảy ra, vui lòng thử lại', type: ToastType.error);
-      setState(() {
-        _isLoading = false;
-      });
+      debugPrint('Failed to refresh total cgm data: $error\n$stackTrace');
+      ToastService.show(
+        context: context,
+        'Đã có lỗi xảy ra, vui lòng thử lại',
+        type: ToastType.error,
+      );
+      setState(() => _isLoading = false);
     }
   }
-
-  // List<UserCGMFile> _filterRows(List<UserCGMFile> files) {
-  //   if (_query.isEmpty) return files;
-  //
-  //   bool match(String? s) => (s ?? '').toLowerCase().contains(_query);
-  //
-  //   return files.where((f) {
-  //     return match(f.userId) ||
-  //         match(f.phoneNumber) ||
-  //         match(f.fullName) ||
-  //         match(f.platform) ||
-  //         match(f.startedAt) ||
-  //         match(f.stoppedAt);
-  //   }).toList();
-  // }
-  //#endregion
 }

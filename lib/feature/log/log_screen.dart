@@ -6,7 +6,9 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:fmc_monitoring_dashboard/core/components/scaffold_widget.dart';
+import 'package:fmc_monitoring_dashboard/core/routing/router.dart';
 import 'package:fmc_monitoring_dashboard/core/services/analytic_service.dart';
+import 'package:fmc_monitoring_dashboard/feature/log/external_log_reader_screen.dart';
 import 'package:fmc_monitoring_dashboard/model/log/log_file.dart';
 import 'package:intl/intl.dart';
 
@@ -628,6 +630,20 @@ class _LogScreenState extends State<LogScreen> {
     final scheme = theme.colorScheme;
 
     return ScaffoldWidget(
+      actions: [
+        IconButton(
+          onPressed: () => context.navigateTo(ExternalLogReaderScreen()),
+          icon: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 1500),
+            transitionBuilder: (child, animation) {
+              return RotationTransition(turns: animation, child: child);
+            },
+            child: Icon(
+              Icons.web_asset_outlined,
+            ),
+          ),
+        )
+      ],
       body: Stack(
         children: [
           Padding(
