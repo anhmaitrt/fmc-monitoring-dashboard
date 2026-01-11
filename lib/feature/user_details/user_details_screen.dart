@@ -116,18 +116,22 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
               _buildUserDetailsItem(
                 label: 'Họ Tên',
                 text: '${user.fullName}',
+                content: user.fullName ?? ''
               ),
               _buildUserDetailsItem(
-                  label: 'SĐT',
-                  text: '${user.phoneNumber}',
+                label: 'SĐT',
+                text: '${user.phoneNumber}',
+                content: user.phoneNumber ?? ''
               ),
               _buildUserDetailsItem(
                 label: 'Id',
                 text: '${user.userId?.replaceRange(0, user.userId!.length - 12, 'xxxxx-xxxxx-')}',
+                content: user.userId ?? '',
               ),
               _buildUserDetailsItem(
-                  label: 'Hệ Điều Hành',
-                  text: '${user.platform}',
+                label: 'Hệ Điều Hành',
+                text: '${user.platform}',
+                content: user.platform ?? '',
               ),
             ],
           ),
@@ -139,6 +143,7 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
   Widget _buildUserDetailsItem({
     required String label,
     required String text,
+    required String content,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -146,7 +151,7 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
         children: [
           Text('$label:', style: TextStyle(fontWeight: FontWeight.bold),),
           InkWell(
-            onTap: () => onTap(context, text),
+            onTap: () => onTap(context, content),
             hoverColor: Colors.blue.withOpacity(0.08),
             child: Padding(
               padding: const EdgeInsets.all(8),
