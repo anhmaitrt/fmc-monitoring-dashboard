@@ -3,10 +3,11 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:fmc_monitoring_dashboard/core/components/chart/line_chart_widget.dart';
 import 'package:fmc_monitoring_dashboard/core/services/analytic_service.dart';
+import 'package:fmc_monitoring_dashboard/core/services/file/file_service.dart';
 import 'package:fmc_monitoring_dashboard/core/services/toast_service.dart';
 import 'package:fmc_monitoring_dashboard/core/style/app_colors.dart';
 import 'package:fmc_monitoring_dashboard/core/style/app_text_styles.dart';
-import 'package:fmc_monitoring_dashboard/model/user_cgm_file.dart';
+import 'package:fmc_monitoring_dashboard/model/user_cgm_data_row.dart';
 
 
 class HomeScreen extends StatefulWidget {
@@ -27,7 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     // Keep original data stable (do not mutate)
-    final all = List<List<UserCGMFile>>.from(AnalyticService.instance.dataFiles);
+    final all = List<List<UserCGMDataRow>>.from(AnalyticService.instance.dataFiles);
 
     // In your old code you used reversed(). That means you want oldest->newest for the chart.
     // We'll keep that behavior AFTER paging.
@@ -49,6 +50,20 @@ class _HomeScreenState extends State<HomeScreen> {
         surfaceTintColor: AppColors.white,
         actions: [
           IconButton(
+            onPressed: _isLoading ? null : _exportCSV,
+            icon: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 1500),
+              transitionBuilder: (child, animation) {
+                return RotationTransition(turns: animation, child: child);
+              },
+              child: Icon(
+                (_isLoading ? Icons.autorenew : Icons.share),
+                color: AppColors.primary,
+                key: ValueKey(_isLoading),
+              ),
+            ),
+          ),
+          IconButton(
             onPressed: _isLoading ? null : _fetchData,
             icon: AnimatedSwitcher(
               duration: const Duration(milliseconds: 1500),
@@ -56,7 +71,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 return RotationTransition(turns: animation, child: child);
               },
               child: Icon(
-                _isLoading ? Icons.autorenew : Icons.refresh_rounded,
+                (_isLoading ? Icons.autorenew : Icons.refresh_rounded),
+                color: AppColors.primary,
                 key: ValueKey(_isLoading),
               ),
             ),
@@ -105,7 +121,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return (totalItems / _perPage).ceil();
   }
 
-  List<List<UserCGMFile>> _paginate(List<List<UserCGMFile>> ascOldestToNewest) {
+  List<List<UserCGMDataRow>> _paginate(List<List<UserCGMDataRow>> ascOldestToNewest) {
     if (ascOldestToNewest.isEmpty) return const [];
 
     final total = ascOldestToNewest.length;
@@ -200,9 +216,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildTotalCGMChart(
-      List<List<UserCGMFile>> data,
-      List<List<UserCGMFile>> androidUsers,
-      List<List<UserCGMFile>> iosUser,
+      List<List<UserCGMDataRow>> data,
+      List<List<UserCGMDataRow>> androidUsers,
+      List<List<UserCGMDataRow>> iosUser,
       ) {
     if (data.isEmpty) {
       return _buildChart(
@@ -234,9 +250,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildInterruptionChart(
-      List<List<UserCGMFile>> data,
-      List<List<UserCGMFile>> androidUsers,
-      List<List<UserCGMFile>> iosUser,
+      List<List<UserCGMDataRow>> data,
+      List<List<UserCGMDataRow>> androidUsers,
+      List<List<UserCGMDataRow>> iosUser,
       ) {
     if (data.isEmpty) {
       return _buildChart(
@@ -281,9 +297,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildInterruptionByPercentageRange(
-      List<List<UserCGMFile>> data,
-      List<List<UserCGMFile>> androidUsers,
-      List<List<UserCGMFile>> iosUsers,
+      List<List<UserCGMDataRow>> data,
+      List<List<UserCGMDataRow>> androidUsers,
+      List<List<UserCGMDataRow>> iosUsers,
       ) {
     if (data.isEmpty) {
       return _buildChart(
@@ -385,6 +401,26 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         _isLoading = false;
         _pageIndex = 0; // reset chart paging after refresh
+      });
+    } catch (error, stackTrace) {
+      debugPrint('Failed to refresh total cgm data: $error\n$stackTrace');
+      ToastService.show(
+        context: context,
+        'Đã có lỗi xảy ra, vui lòng thử lại',
+        type: ToastType.error,
+      );
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _exportCSV() async {
+    try {
+      setState(() => _isLoading = true);
+      await FileService.instance.exportCsv(
+        AnalyticService.instance.dataFiles.toCSVData()
+      );
+      setState(() {
+        _isLoading = false;
       });
     } catch (error, stackTrace) {
       debugPrint('Failed to refresh total cgm data: $error\n$stackTrace');

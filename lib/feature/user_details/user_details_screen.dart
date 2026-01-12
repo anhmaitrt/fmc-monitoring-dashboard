@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fmc_monitoring_dashboard/core/components/scaffold_widget.dart';
 import 'package:fmc_monitoring_dashboard/core/utils/extension/string_extension.dart';
-import 'package:fmc_monitoring_dashboard/model/user_cgm_file.dart';
+import 'package:fmc_monitoring_dashboard/model/user_cgm_data_row.dart';
 import 'package:get/get_navigation/src/root/parse_route.dart';
 
 import '../../core/components/chart/line_chart_widget.dart';
@@ -35,7 +35,7 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    var data = _query.isNullOrEmpty ? List<List<UserCGMFile>>.empty() : AnalyticService.instance.dataFiles.map((files) => files.filter(_query)).toList();
+    var data = _query.isNullOrEmpty ? List<List<UserCGMDataRow>>.empty() : AnalyticService.instance.dataFiles.map((files) => files.filter(_query)).toList();
     data = data.reversed.toList();
 
     int limit = 30;
@@ -44,7 +44,7 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
       data.removeWhere((e) => e.isEmpty);
     }
 
-    UserCGMFile? user;
+    UserCGMDataRow? user;
     if(data.every((e) => e.every((f) => f.phoneNumber == _query))) {
       user = data.firstOrNull?.firstOrNull;
     }
@@ -104,7 +104,7 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
     );
   }
 
-  Widget _buildUserDetails(UserCGMFile? user) {
+  Widget _buildUserDetails(UserCGMDataRow? user) {
     return SizedBox(
       width: double.infinity,
       child: Card.filled(
@@ -174,7 +174,7 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
   }
 
   Widget _buildInterruptionChart(
-      List<List<UserCGMFile>> data,
+      List<List<UserCGMDataRow>> data,
   ) {
     if(data.isEmpty) {
       return Center(

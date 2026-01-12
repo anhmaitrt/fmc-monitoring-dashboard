@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fmc_monitoring_dashboard/core/components/table/cell_widget.dart';
 import 'package:fmc_monitoring_dashboard/core/services/analytic_service.dart';
-import 'package:fmc_monitoring_dashboard/model/user_cgm_file.dart';
+import 'package:fmc_monitoring_dashboard/model/user_cgm_data_row.dart';
 
 import '../../core/services/toast_service.dart';
 import '../../core/style/app_colors.dart';
@@ -36,7 +36,7 @@ class _DataScreenState extends State<DataScreen> {
   // -----------------------
 
   /// Apply search to each group and remove empty groups
-  List<List<UserCGMFile>> get _filteredGroups {
+  List<List<UserCGMDataRow>> get _filteredGroups {
     final groups = AnalyticService.instance.dataFiles;
 
     return groups
@@ -52,7 +52,7 @@ class _DataScreenState extends State<DataScreen> {
     return (_totalItems / _rowsPerPage).ceil();
   }
 
-  List<List<UserCGMFile>> get _pagedGroups {
+  List<List<UserCGMDataRow>> get _pagedGroups {
     final list = _filteredGroups;
     if (list.isEmpty) return const [];
 
@@ -213,7 +213,7 @@ class _DataScreenState extends State<DataScreen> {
     );
   }
 
-  Widget _buildTable(List<UserCGMFile> files) {
+  Widget _buildTable(List<UserCGMDataRow> files) {
     if (files.isEmpty) {
       return const Center(child: Text('Không có dữ liệu'));
     }

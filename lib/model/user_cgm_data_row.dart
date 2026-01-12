@@ -4,6 +4,7 @@ import 'dart:math';
 
 import 'package:fmc_monitoring_dashboard/core/utils/extension/date_extension.dart';
 import 'package:fmc_monitoring_dashboard/core/utils/extension/string_extension.dart';
+import 'package:fmc_monitoring_dashboard/model/export/issue_export_row.dart';
 import 'package:fmc_monitoring_dashboard/model/sync_gap.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:json_annotation/json_annotation.dart';
@@ -12,11 +13,11 @@ import 'package:tuple/tuple.dart';
 import '../core/services/settings/settings.dart';
 import '../core/utils/extension/list_extension.dart';
 
-part 'user_cgm_file.g.dart';
+part 'user_cgm_data_row.g.dart';
 
 @JsonSerializable(explicitToJson: true)
-class UserCGMFile {
-  UserCGMFile({
+class UserCGMDataRow {
+  UserCGMDataRow({
     this.fileName,
     required this.userId,
     required this.phoneNumber,
@@ -64,10 +65,10 @@ class UserCGMFile {
   @JsonKey(name: 'sync_gap_count')
   final int? syncGapCount;
 
-  factory UserCGMFile.fromJson(Map<String, dynamic> json) =>
-      _$UserCGMFileFromJson(json);
+  factory UserCGMDataRow.fromJson(Map<String, dynamic> json) =>
+      _$UserCGMDataRowFromJson(json);
 
-  Map<String, dynamic> toJson() => _$UserCGMFileToJson(this);
+  Map<String, dynamic> toJson() => _$UserCGMDataRowToJson(this);
 
   static List<SyncGap> _syncGapsFromJson(List<dynamic> json) =>
       json.map((e) => SyncGap.fromJson(e as List<dynamic>)).toList();
@@ -76,7 +77,7 @@ class UserCGMFile {
       gaps.map((e) => e.toJson()).toList();
 
   @override
-  String toString() => 'UserCGMFile('
+  String toString() => 'UserCGMDataRow('
         'fileName: $fileName, '
         'userId: $userId, '
         'phoneNumber: $phoneNumber, '
@@ -150,7 +151,7 @@ class UserCGMFile {
   }
 }
 
-extension EUserCGMFile on UserCGMFile {
+extension EUserCGMDataRow on UserCGMDataRow {
   double get totalGapTimeInMinute {
     int totalGapTime = 0;
     for(int i = 0; i < syncGaps.length; i++) {
@@ -206,9 +207,9 @@ extension EUserCGMFile on UserCGMFile {
   }
 }
 
-extension EListTotalCgmFile on List<UserCGMFile> {
+extension EListUserCGMDataRow on List<UserCGMDataRow> {
   /// userId | phoneNumber | fullName | platform | startedAt | stoppedAt
-  List<UserCGMFile> filter(String query) {
+  List<UserCGMDataRow> filter(String query) {
     if (query.isEmpty) return this;
 
     bool match(String? s) => (s ?? '').toLowerCase().contains(query);
@@ -233,7 +234,7 @@ extension EListTotalCgmFile on List<UserCGMFile> {
     return count;
   }
 
-  List<UserCGMFile> filterByPlatform(String platform) => where((d) => d.platform == platform).toList();
+  List<UserCGMDataRow> filterByPlatform(String platform) => where((d) => d.platform == platform).toList();
 
   double get longestGapTimeInMinute => map((f) => f.longestGapTimeInMinute).toList().reduce(max);
 
@@ -265,7 +266,7 @@ extension EListTotalCgmFile on List<UserCGMFile> {
     return ((totalGapTimeInHour / getTotalSessionInHour(maxHour: 24)) * 100).roundToDouble();
   }
 
-  UserCGMFile getUserWithLongestGap() {
+  UserCGMDataRow getUserWithLongestGap() {
     return reduce((current, next) {
       return current.totalGapTimeInHour > next.totalGapTimeInHour ? current : next;
     });
@@ -399,16 +400,12 @@ extension EListTotalCgmFile on List<UserCGMFile> {
   // }
 }
 
-extension EListListTotalCgmFile on List<List<UserCGMFile>> {
+extension EListListCgmDataRow on List<List<UserCGMDataRow>> {
   List<double> countByPlatform(String platform) => map((l) => l.countByPlatform(platform).toDouble()).toList();
 
-  List<List<UserCGMFile>> splitByPlatform(String platform) {
-    return map((l) => l.filterByPlatform(platform)).toList();
-  }
+  List<List<UserCGMDataRow>> splitByPlatform(String platform) => map((l) => l.filterByPlatform(platform)).toList();
 
-  List<double> count() {
-    return map((l) => l.length.toDouble()).toList(growable: false);
-  }
+  List<double> count() => map((l) => l.length.toDouble()).toList(growable: false);
 
   double? get maxX {
     return length <= 31 ? length.toDouble() : 31;
@@ -452,5 +449,130 @@ extension EListListTotalCgmFile on List<List<UserCGMFile>> {
     if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return null;
 
     return DateTime(year, mm, dd);
+  }
+
+  List<IssueExportRow> toCSVData({
+        int lastNDays = 30,
+      }) {
+    final result = <IssueExportRow>[];
+
+    // Find the latest day in the dataset (anchor)
+    final allDates = map((d) => d.firstOrNull?.dateTime)
+        .whereType<DateTime>()
+        .toList();
+
+    if (allDates.isEmpty) return result;
+
+    final anchor = allDates.reduce((a, b) => a.isAfter(b) ? a : b);
+    final cutoff = anchor.subtract(Duration(days: lastNDays - 1)); // inclusive window
+
+    final grouped = groupByUserIdKeepDays(); // Map<String, List<List<UserCGMFile>>>
+
+    grouped.forEach((userId, days) {
+      // Keep only days within [cutoff..anchor]
+      final recentDays = days.where((dayList) {
+        final dt = dayList.firstOrNull?.dateTime;
+        if (dt == null) return false;
+        return !dt.isBefore(cutoff) && !dt.isAfter(anchor);
+      }).toList();
+
+      if (recentDays.isEmpty) return;
+
+      final allRecords = recentDays.expand((d) => d).toList();
+      if (allRecords.isEmpty) return;
+
+      final percentages = allRecords
+          .map((e) => e.interruptionPercentage)
+          .where((p) => p.isFinite)
+          .toList();
+
+      final avgPercent = percentages.isEmpty
+          ? 0.0
+          : percentages.reduce((a, b) => a + b) / percentages.length;
+
+      String priority = 'Bình thường';
+      if (avgPercent >= 20 && avgPercent < 50) {
+        priority = 'Trung bình';
+      } else if (avgPercent >= 50 && avgPercent < 80) {
+        priority = 'Cao';
+      } else if (avgPercent >= 80) {
+        priority = 'Nguy hiểm';
+      }
+
+      // pick latest record in that window (optional)
+      allRecords.sort((a, b) {
+        final da = a.dateTime;
+        final db = b.dateTime;
+        if (da == null || db == null) return 0;
+        return db.compareTo(da);
+      });
+      final latest = allRecords.first;
+
+      final issueText = recentDays
+          .map((d) => d.summarizeSyncGaps())
+          .where((s) => s.trim().isNotEmpty)
+          .join('\n\n');
+
+      result.add(IssueExportRow(
+        phone: latest.phoneNumber ?? '',
+        name: latest.fullName ?? '',
+        priority: priority,
+        issue: issueText,
+      ));
+    });
+
+    return result;
+  }
+
+  Map<String, List<UserCGMDataRow>> groupByUserIdSorted(List<List<UserCGMDataRow>> dataFiles) {
+    final grouped = _groupByUserId(dataFiles);
+
+    for (final entry in grouped.entries) {
+      entry.value.sort((a, b) {
+        final da = a.dateTime;
+        final db = b.dateTime;
+        if (da == null || db == null) return 0;
+        return da.compareTo(db); // ASC (old -> new). Use db.compareTo(da) for DESC
+      });
+    }
+
+    return grouped;
+  }
+
+  Map<String, List<UserCGMDataRow>> _groupByUserId(List<List<UserCGMDataRow>> dataFiles) {
+    final Map<String, List<UserCGMDataRow>> grouped = {};
+
+    for (final dayList in dataFiles) {
+      for (final item in dayList) {
+        final id = item.userId;
+        if (id == null || id.isEmpty) continue;
+
+        (grouped[id] ??= []).add(item);
+      }
+    }
+
+    return grouped;
+  }
+
+  Map<String, List<List<UserCGMDataRow>>> groupByUserIdKeepDays() {
+    final Map<String, List<List<UserCGMDataRow>>> result = {};
+
+    for (final dayList in this) {
+      // group within this day by userId
+      final Map<String, List<UserCGMDataRow>> dayGrouped = {};
+
+      for (final item in dayList) {
+        final id = item.userId;
+        if (id == null || id.isEmpty) continue;
+        (dayGrouped[id] ??= []).add(item);
+      }
+
+      // append this day-group to global result
+      for (final e in dayGrouped.entries) {
+        (result[e.key] ??= []).add(e.value);
+      }
+    }
+
+    return result;
   }
 }

@@ -1,10 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:fmc_monitoring_dashboard/model/log/csv_log_model.dart';
 import 'package:fmc_monitoring_dashboard/model/log/log_file.dart';
 
-import '../../model/user_cgm_file.dart';
+import '../../model/user_cgm_data_row.dart';
 import '../components/toast/model/loading_progress.dart';
 import 'google_drive_service.dart';
 
@@ -22,7 +23,7 @@ class AnalyticService {
     final _progressController = StreamController<LoadingProgress>.broadcast();
     Stream<LoadingProgress> get progressStream => _progressController.stream;
 
-    List<List<UserCGMFile>> dataFiles = List.empty(growable: true);
+    List<List<UserCGMDataRow>> dataFiles = List.empty(growable: true);
     List<CSVLogModel> logList = List.empty(growable: true);
 
     void _emit(LoadingProgress p) {
@@ -47,6 +48,7 @@ class AnalyticService {
             dataFiles.clear();
 
             final rawFiles = await GoogleDriveService.instance.readFolder(DATA_FOLDER);
+            // rawFiles.removeRange(2, rawFiles.length);
 
             final total = rawFiles.length;
             var completed = 0;
@@ -54,7 +56,7 @@ class AnalyticService {
             _emit(LoadingProgress(isLoading: true, current: 0, total: total));
 
             // results holder with stable order
-            final results = List<List<UserCGMFile>?>.filled(total, null);
+            final results = List<List<UserCGMDataRow>?>.filled(total, null);
 
             await _runPool(
                 items: rawFiles,
@@ -63,10 +65,10 @@ class AnalyticService {
                     // Download
                     final jsonList = await GoogleDriveService.instance.getJsonContent(file);
 
-                    final models = <UserCGMFile>[];
+                    final models = <UserCGMDataRow>[];
 
                     for (final j in jsonList) {
-                        final model = UserCGMFile.fromJson(j);
+                        final model = UserCGMDataRow.fromJson(j);
                         model.fileName = file.name;
 
                         if (!(model.phoneNumber?.contains('demo') ?? false)) {
@@ -88,7 +90,7 @@ class AnalyticService {
             );
 
             // Collect results (keeping file order)
-            dataFiles.addAll(results.whereType<List<UserCGMFile>>());
+            dataFiles.addAll(results.whereType<List<UserCGMDataRow>>());
 
             // Your existing sort by file dateTime (if you still want)
             dataFiles.sort((a, b) {
@@ -121,6 +123,7 @@ class AnalyticService {
 
             print('CSV ${file.name} has ${rows.length} rows');
             // rows.removeRange(2, rows.length);
+
             int createdAtColumnIndex = -1;
             int userIdColumnIndex = -1;
             int messageColumnIndex = -1;
@@ -133,17 +136,23 @@ class AnalyticService {
             // Start from 1, skip header row if needed
             for (int r = 1; r < rows.length; r++) {
                 LogFile? message;
-                final messageJson = messageColumnIndex != -1 ? rows[r][messageColumnIndex] : null;
-                if(messageJson != null) {
-                    final json = jsonDecode(messageJson);
-                    print('json: $json');
-                    if(json is! Map<String, dynamic>) {
-                        message = LogFile.fromJson(json);
-                    }
+                final messageJsonString = messageColumnIndex != -1 ? rows[r][messageColumnIndex] : null;
+                if(messageJsonString != null) {
+                    final json = jsonDecode(messageJsonString);
+                    // print('json: $json');
+                    message = LogFile.fromJson(json);
+                    // if(json is! Map<String, dynamic>) {
+                    //     message = LogFile.fromJson(json);
+                    // } else {
+                    //     print('CSV ${file.name} missing logs at row $r, row data as json $messageJsonString, \n----message: $message');
+                    // }
                 }
 
                 if(message == null) {
-                    print('Row $r missing message');
+                    print('CSV ${file.name} missing message at row $r, row data as json $messageJsonString'
+                        '\n---- Raw data: ${rows[r][messageColumnIndex]}'
+                        '\n------ jsonString: ${jsonDecode(messageJsonString)}');
+                    break;
                 }
 
                 logList.add(CSVLogModel(

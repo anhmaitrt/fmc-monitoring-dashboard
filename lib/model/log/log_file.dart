@@ -10,6 +10,11 @@ class LogFile {
 
   factory LogFile.fromJson(Map<String, dynamic> json) => _$LogFileFromJson(json);
   Map<String, dynamic> toJson() => _$LogFileToJson(this);
+
+  @override
+  String toString() {
+    return logs.map((e) => '${e.genTime}: ${e.message}').toList().toString();
+  }
 }
 
 @JsonSerializable()
