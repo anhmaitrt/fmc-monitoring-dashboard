@@ -1,9 +1,10 @@
 import 'package:csv/csv.dart';
+import 'package:fmc_monitoring_dashboard/model/export/issue_priority.dart';
 
 class IssueExportRow {
   final String phone;
   final String name;
-  final String priority;
+  final IssuePriority priority;
   final String issue;
 
   IssueExportRow({
@@ -13,26 +14,15 @@ class IssueExportRow {
     required this.issue,
   });
 
-  String buildCsv(List<IssueExportRow> rows) {
-    final data = <List<String>>[
-      // Header
-      ['SDT', 'Tên khách', 'Độ ưu tiên', 'Vấn đề'],
+}
+
+extension EIssueExportRow on IssueExportRow {
+  List<String> toCsvRow() {
+    return [
+      phone,
+      name,
+      priority.label,
+      issue,
     ];
-
-    for (final r in rows) {
-      data.add([
-        r.phone,
-        r.name,
-        r.priority,
-        r.issue,
-      ]);
-    }
-
-    return const ListToCsvConverter(
-      fieldDelimiter: ',',
-      textDelimiter: '"',
-      eol: '\n',
-    ).convert(data);
   }
-
 }

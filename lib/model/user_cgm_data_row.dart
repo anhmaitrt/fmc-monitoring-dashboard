@@ -12,6 +12,7 @@ import 'package:tuple/tuple.dart';
 
 import '../core/services/settings/settings.dart';
 import '../core/utils/extension/list_extension.dart';
+import 'export/issue_priority.dart';
 
 part 'user_cgm_data_row.g.dart';
 
@@ -326,6 +327,79 @@ extension EListUserCGMDataRow on List<UserCGMDataRow> {
         '\nX: $androidStopSync android (${(androidStopSync/countAndroid*100).toStringAsFixed(1)}%), $iosStopSync ios (${(iosStopSync/countIos*100).toStringAsFixed(1)}%)';
   }
 
+  // String summarizeGapKeepValue() {
+  //   int countAndroid = 0;
+  //   int androidUnder20 = 0;
+  //   int androidOver20 = 0;
+  //   int androidOver50 = 0;
+  //   int androidOver80 = 0;
+  //   int androidStopSync = 0;
+  //
+  //   int countIos = 0;
+  //   int iosUnder20 = 0;
+  //   int iosOver20 = 0;
+  //   int iosOver50 = 0;
+  //   int iosOver80 = 0;
+  //   int iosStopSync = 0;
+  //
+  //   double interruptionPercentage = 0;
+  //   for(int i = 0; i < length; i++) {
+  //     interruptionPercentage = this[i].interruptionPercentage;
+  //     if(this[i].platform == 'android') {
+  //       countAndroid++;
+  //       if(interruptionPercentage < 20) {
+  //         androidUnder20++;
+  //       } else if(interruptionPercentage >= 20 && interruptionPercentage < 50) {
+  //         androidOver20++;
+  //       } else if(interruptionPercentage >= 50 && interruptionPercentage < 80) {
+  //         androidOver50++;
+  //       } else if(interruptionPercentage >= 99.93 && interruptionPercentage <= 99.99 && Settings.filterStopSync) {
+  //         androidStopSync++;
+  //       } else if(interruptionPercentage >= 80) {
+  //         androidOver80++;
+  //       }
+  //     } else if(this[i].platform == 'ios') {
+  //       countIos++;
+  //       if(interruptionPercentage < 20) {
+  //         iosUnder20++;
+  //       } else if(interruptionPercentage >= 20 && interruptionPercentage < 50) {
+  //         iosOver20++;
+  //       } else if(interruptionPercentage >= 50 && interruptionPercentage < 80) {
+  //         iosOver50++;
+  //       } else if(interruptionPercentage >= 99.93 && interruptionPercentage <= 99.99 && Settings.filterStopSync) {
+  //         iosStopSync++;
+  //       } else if(interruptionPercentage >= 80) {
+  //         iosOver80++;
+  //       }
+  //     }
+  //   }
+  //
+  //   String result = '';
+  //   if(androidUnder20 != 0) {
+  //     result += 'Android <20%: $androidUnder20\n';
+  //   } else if (iosUnder20 != 0) {
+  //     result += 'iOS <20%: $iosUnder20\n';
+  //   } else if (androidOver20 != 0) {
+  //     result += 'Android ≥20%: $androidOver20\n';
+  //   } else if (iosOver20 != 0) {
+  //     result += 'iOS ≥20%: $iosOver20\n';
+  //   } else if (androidOver50 != 0) {
+  //     result += 'Android ≥50%: $androidOver50\n';
+  //   } else if (iosOver50 != 0) {
+  //     result += 'iOS ≥50%: $iosOver50\n';
+  //   } else if (androidOver80 != 0) {
+  //     result += 'Android ≥80%: $androidOver80\n';
+  //   } else if (iosOver80 != 0) {
+  //     result += 'iOS ≥80%: $iosOver80\n';
+  //   } else if (androidStopSync != 0) {
+  //     result += 'Android X: $androidStopSync\n';
+  //   } else if (iosStopSync != 0) {
+  //     result += 'iOS X: $iosStopSync\n';
+  //   }
+  //
+  //   return result;
+  // }
+
   List<double> getPercentageRange(String platform) {
     double countUser = 0;
     double under20 = 0;
@@ -454,14 +528,14 @@ extension EListListCgmDataRow on List<List<UserCGMDataRow>> {
   List<IssueExportRow> toCSVData({
         int lastNDays = 30,
       }) {
-    final result = <IssueExportRow>[];
+    final rows = <IssueExportRow>[];
 
     // Find the latest day in the dataset (anchor)
     final allDates = map((d) => d.firstOrNull?.dateTime)
         .whereType<DateTime>()
         .toList();
 
-    if (allDates.isEmpty) return result;
+    if (allDates.isEmpty) return rows;
 
     final anchor = allDates.reduce((a, b) => a.isAfter(b) ? a : b);
     final cutoff = anchor.subtract(Duration(days: lastNDays - 1)); // inclusive window
@@ -490,14 +564,7 @@ extension EListListCgmDataRow on List<List<UserCGMDataRow>> {
           ? 0.0
           : percentages.reduce((a, b) => a + b) / percentages.length;
 
-      String priority = 'Bình thường';
-      if (avgPercent >= 20 && avgPercent < 50) {
-        priority = 'Trung bình';
-      } else if (avgPercent >= 50 && avgPercent < 80) {
-        priority = 'Cao';
-      } else if (avgPercent >= 80) {
-        priority = 'Nguy hiểm';
-      }
+      final priority = IssuePriority.fromPercent(avgPercent);
 
       // pick latest record in that window (optional)
       allRecords.sort((a, b) {
@@ -508,20 +575,24 @@ extension EListListCgmDataRow on List<List<UserCGMDataRow>> {
       });
       final latest = allRecords.first;
 
-      final issueText = recentDays
-          .map((d) => d.summarizeSyncGaps())
-          .where((s) => s.trim().isNotEmpty)
-          .join('\n\n');
+      final avg = percentages.isEmpty
+          ? 0.0
+          : percentages.reduce((a, b) => a + b) / percentages.length;
 
-      result.add(IssueExportRow(
+      final issue = 'Chậm ${avg.toStringAsFixed(1)}% trong $lastNDays ngày';
+
+      rows.add(IssueExportRow(
         phone: latest.phoneNumber ?? '',
         name: latest.fullName ?? '',
         priority: priority,
-        issue: issueText,
+        issue: issue,
       ));
     });
 
-    return result;
+    rows.sort((a, b) =>
+        b.priority.rank.compareTo(a.priority.rank));
+
+    return rows;
   }
 
   Map<String, List<UserCGMDataRow>> groupByUserIdSorted(List<List<UserCGMDataRow>> dataFiles) {

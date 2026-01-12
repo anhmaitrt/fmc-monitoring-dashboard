@@ -17,8 +17,11 @@ class FileService {
     Future<void> exportCsv(List<IssueExportRow> rows) async {
       final csv = buildCsv(rows);
 
+      String _two(int v) => v.toString().padLeft(2, '0');
+
+      final now = DateTime.now();
       final fileName =
-          'issues_${DateTime.now().toIso8601String().substring(0, 10)}.csv';
+          'issues_${now.year}-${_two(now.month)}-${_two(now.day)}_${_two(now.hour)}${_two(now.minute)}${_two(now.second)}.csv';
 
       if (kIsWeb) {
         downloadCsvWeb(csv, fileName: fileName);
@@ -58,12 +61,7 @@ class FileService {
       ];
 
       for (final r in rows) {
-        data.add([
-          r.phone,
-          r.name,
-          r.priority,
-          r.issue,
-        ]);
+        data.add(r.toCsvRow());
       }
 
       return const ListToCsvConverter(
