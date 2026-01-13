@@ -525,25 +525,20 @@ extension EListListCgmDataRow on List<List<UserCGMDataRow>> {
     return DateTime(year, mm, dd);
   }
 
-  List<IssueExportRow> toCSVData({
-        int lastNDays = 30,
-      }) {
+  List<IssueExportRow> toCSVData({int lastNDays = 30}) {
     final rows = <IssueExportRow>[];
 
-    // Find the latest day in the dataset (anchor)
     final allDates = map((d) => d.firstOrNull?.dateTime)
         .whereType<DateTime>()
         .toList();
-
     if (allDates.isEmpty) return rows;
 
     final anchor = allDates.reduce((a, b) => a.isAfter(b) ? a : b);
-    final cutoff = anchor.subtract(Duration(days: lastNDays - 1)); // inclusive window
+    final cutoff = anchor.subtract(Duration(days: lastNDays - 1)); // inclusive
 
     final grouped = groupByUserIdKeepDays(); // Map<String, List<List<UserCGMFile>>>
 
     grouped.forEach((userId, days) {
-      // Keep only days within [cutoff..anchor]
       final recentDays = days.where((dayList) {
         final dt = dayList.firstOrNull?.dateTime;
         if (dt == null) return false;
@@ -566,7 +561,7 @@ extension EListListCgmDataRow on List<List<UserCGMDataRow>> {
 
       final priority = IssuePriority.fromPercent(avgPercent);
 
-      // pick latest record in that window (optional)
+      // latest record in window
       allRecords.sort((a, b) {
         final da = a.dateTime;
         final db = b.dateTime;
@@ -575,22 +570,27 @@ extension EListListCgmDataRow on List<List<UserCGMDataRow>> {
       });
       final latest = allRecords.first;
 
-      final avg = percentages.isEmpty
-          ? 0.0
-          : percentages.reduce((a, b) => a + b) / percentages.length;
-
-      final issue = 'Chậm ${avg.toStringAsFixed(1)}% trong $lastNDays ngày';
+      final issue = 'Chậm ${avgPercent.toStringAsFixed(1)}% trong $lastNDays ngày';
 
       rows.add(IssueExportRow(
         phone: latest.phoneNumber ?? '',
         name: latest.fullName ?? '',
         priority: priority,
         issue: issue,
+        avgPercent: avgPercent,
       ));
     });
 
-    rows.sort((a, b) =>
-        b.priority.rank.compareTo(a.priority.rank));
+    // ✅ sort: priority DESC, then avgPercent DESC, then name ASC (optional)
+    rows.sort((a, b) {
+      final p = b.priority.rank.compareTo(a.priority.rank);
+      if (p != 0) return p;
+
+      final avg = b.avgPercent.compareTo(a.avgPercent);
+      if (avg != 0) return avg;
+
+      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+    });
 
     return rows;
   }

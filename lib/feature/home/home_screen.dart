@@ -417,7 +417,7 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       setState(() => _isLoading = true);
       await FileService.instance.exportCsv(
-        AnalyticService.instance.dataFiles.toCSVData()
+        AnalyticService.instance.dataFiles.toCSVData(lastNDays: _perPage)
       );
       setState(() {
         _isLoading = false;

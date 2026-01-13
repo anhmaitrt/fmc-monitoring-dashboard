@@ -6,12 +6,14 @@ class IssueExportRow {
   final String name;
   final IssuePriority priority;
   final String issue;
+  final double avgPercent;
 
   IssueExportRow({
     required this.phone,
     required this.name,
     required this.priority,
     required this.issue,
+    required this.avgPercent,
   });
 
 }
