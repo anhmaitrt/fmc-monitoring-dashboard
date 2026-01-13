@@ -573,7 +573,7 @@ extension EListListCgmDataRow on List<List<UserCGMDataRow>> {
       final issue = 'Chậm ${avgPercent.toStringAsFixed(1)}% trong $lastNDays ngày';
 
       rows.add(IssueExportRow(
-        phone: latest.phoneNumber ?? '',
+        phone: latest.phoneNumber?.maskPhone() ?? '',
         name: latest.fullName ?? '',
         priority: priority,
         issue: issue,

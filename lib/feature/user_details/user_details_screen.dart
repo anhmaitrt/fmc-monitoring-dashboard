@@ -17,7 +17,10 @@ import '../../core/style/app_colors.dart';
 class UserDetailsScreen extends StatefulWidget {
   const UserDetailsScreen({
     super.key,
+    this.phoneNumber,
   });
+
+  final String? phoneNumber;
 
   @override
   State<UserDetailsScreen> createState() => _UserDetailsScreenState();
@@ -27,6 +30,12 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
   bool _isLoading = false;
   final _searchCtrl = TextEditingController();
   String _query = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _query = widget.phoneNumber ?? '';
+  }
 
   @override
   void dispose() {
@@ -122,12 +131,12 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
               ),
               _buildUserDetailsItem(
                 label: 'SĐT',
-                text: '${row.phoneNumber}',
+                text: row.phoneNumber.maskPhone(),
                 content: row.phoneNumber ?? ''
               ),
               _buildUserDetailsItem(
                 label: 'Id',
-                text: '${row.userId?.replaceRange(0, row.userId!.length - 12, 'xxxxx-xxxxx-')}',
+                text: '${row.userId?.maskUuid()}',
                 content: row.userId ?? '',
               ),
               _buildUserDetailsItem(

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:fmc_monitoring_dashboard/core/components/table/cell_widget.dart';
+import 'package:fmc_monitoring_dashboard/core/routing/router.dart';
 import 'package:fmc_monitoring_dashboard/core/services/analytic_service.dart';
+import 'package:fmc_monitoring_dashboard/core/utils/extension/string_extension.dart';
+import 'package:fmc_monitoring_dashboard/feature/user_details/user_details_screen.dart';
 import 'package:fmc_monitoring_dashboard/model/user_cgm_data_row.dart';
 
 import '../../core/services/toast_service.dart';
@@ -254,6 +257,7 @@ class _DataScreenState extends State<DataScreen> {
                   CellWidget(text: "Platform", enableCopyOnTap: false),
                   CellWidget(text: 'Ngày Bắt Đầu - Kết Thúc', enableCopyOnTap: false),
                   CellWidget(text: 'Khoảng chậm', enableCopyOnTap: false),
+                  CellWidget(text: '', enableCopyOnTap: false),
                 ],
               ),
               ...sorted.map((file) {
@@ -262,8 +266,8 @@ class _DataScreenState extends State<DataScreen> {
                       ? const BoxDecoration(color: AppColors.disableText)
                       : null,
                   children: [
-                    CellWidget(text: file.userId ?? ''),
-                    CellWidget(text: file.phoneNumber ?? ''),
+                    CellWidget(text: file.userId.maskUuid()),
+                    CellWidget(text: file.phoneNumber.maskPhone()),
                     CellWidget(text: file.fullName ?? ''),
                     CellWidget(text: file.platform ?? '', enableCopyOnTap: false),
                     CellWidget(
@@ -275,6 +279,9 @@ class _DataScreenState extends State<DataScreen> {
                       text: file.summarizeSyncGaps(),
                       enableCopyOnTap: false,
                     ),
+                    TextButton(onPressed: () {
+                      context.navigateTo(UserDetailsScreen(phoneNumber: file.phoneNumber,));
+                    }, child: Text('Chi tiết')),
                   ],
                 );
               }),
