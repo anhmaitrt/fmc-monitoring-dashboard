@@ -1,9 +1,10 @@
+import 'dart:convert';
+
 import 'package:fmc_monitoring_dashboard/model/log/log_file.dart';
 
 class CSVLogModel {
   final String? userId;
   final String? createdAt;
-  // final String? genTime;
   final LogEntry? log;
 
   CSVLogModel({
@@ -14,4 +15,114 @@ class CSVLogModel {
 
   DateTime? get genTime => log?.genDateTime;
   String? get message => log?.message;
+}
+
+extension EListCSVLogModel on List<CSVLogModel> {
+  /// Return a NEW list sorted by genTime desc (latest first).
+  List<CSVLogModel> sortedByGenTimeDesc() {
+    final copy = [...this];
+    copy.sort((a, b) {
+      final da = a.genTime;
+      final db = b.genTime;
+      if (da == null && db == null) return 0;
+      if (da == null) return 1; // null goes last
+      if (db == null) return -1;
+      return db.compareTo(da); // DESC
+    });
+    return copy;
+  }
+
+  /// Latest log (by genTime). Null if list empty.
+  CSVLogModel? latest() => sortedByGenTimeDesc().firstOrNull;
+
+  /// Find the latest message that matches any pattern, return group(1)
+  // String? _extractFromLatestMatching(
+  //     List<RegExp> patterns, {
+  //       int? maxScan, // optional performance cap
+  //     }) {
+  //   final sorted = sortedByGenTimeDesc();
+  //   final limit = maxScan == null ? sorted.length : maxScan.clamp(0, sorted.length);
+  //
+  //   for (int i = 0; i < limit; i++) {
+  //     final msg = sorted[i].message;
+  //     if (msg == null || msg.isEmpty) continue;
+  //
+  //     for (final re in patterns) {
+  //       final m = re.firstMatch(msg);
+  //       if (m != null) {
+  //         final v = m.group(1)?.trim();
+  //         if (v != null && v.isNotEmpty) return v;
+  //       }
+  //     }
+  //   }
+  //   return null;
+  // }
+
+  /// Find latest log whose JSON string matches [predicate] and return parsed Map.
+  Map<String, dynamic>? _latestJsonWhere(
+      bool Function(String rawJson) predicate, {
+        int maxScan = 500,
+      }) {
+    final sorted = sortedByGenTimeDesc();
+    final limit = maxScan.clamp(0, sorted.length);
+
+    for (int i = 0; i < limit; i++) {
+      final raw = sorted[i].message; // <- your JSON string
+      if (raw == null || raw.isEmpty) continue;
+      if (!predicate(raw)) continue;
+
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map<String, dynamic>) return decoded;
+      } catch (_) {
+        // ignore bad JSON row
+      }
+    }
+    return null;
+  }
+
+  /// Use this if you want only logs with tag auto_sync (based on JSON content)
+  Map<String, dynamic>? _latestAutoSyncJson({int maxScan = 500}) {
+    return _latestJsonWhere(
+          (raw) => raw.contains('"tag":"auto_sync"') || raw.contains('"logType":"auto_sync"'),
+      maxScan: maxScan,
+    );
+  }
+
+  String? extractDeviceModelLatest({int maxScan = 500}) {
+    final json = _latestAutoSyncJson(maxScan: maxScan);
+    if (json == null) return null;
+
+    final info = json['info'];
+    if (info is! Map) return null;
+    final device = info['device'];
+    if (device is! Map) return null;
+
+    return device['model']?.toString(); // e.g. iPhone16,2
+  }
+
+  String? extractPlatformVersionLatest({int maxScan = 500}) {
+    final json = _latestAutoSyncJson(maxScan: maxScan);
+    if (json == null) return null;
+
+    final info = json['info'];
+    if (info is! Map) return null;
+    final device = info['device'];
+    if (device is! Map) return null;
+    final version = device['version'];
+    if (version is! Map) return null;
+
+    return version['version']?.toString(); // Darwin Kernel Version ...
+  }
+
+  String? extractAppVersionLatest({int maxScan = 500}) {
+    final json = _latestAutoSyncJson(maxScan: maxScan);
+    if (json == null) return null;
+
+    final msg = json['message']?.toString() ?? '';
+    // message starts with: [3.6.3] ...
+    final m = RegExp(r'^\s*\[([0-9]+(?:\.[0-9]+){1,3})\]').firstMatch(msg);
+    print('Getting app version ${m?.group(1)}: $msg');
+    return m?.group(1); // 3.6.3
+  }
 }

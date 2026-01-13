@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:fmc_monitoring_dashboard/core/components/scaffold_widget.dart';
 import 'package:fmc_monitoring_dashboard/core/utils/extension/string_extension.dart';
 import 'package:fmc_monitoring_dashboard/model/user_cgm_data_row.dart';
+import 'package:fmc_monitoring_dashboard/model/user_model.dart';
 import 'package:get/get_navigation/src/root/parse_route.dart';
 
 import '../../core/components/chart/line_chart_widget.dart';
@@ -104,34 +105,45 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
     );
   }
 
-  Widget _buildUserDetails(UserCGMDataRow? user) {
+  Widget _buildUserDetails(UserCGMDataRow? row) {
+    final user = AnalyticService.instance.userList.getUserById(row?.userId ?? '');
     return SizedBox(
       width: double.infinity,
       child: Card.filled(
         color: AppColors.white,
         child: Padding(
           padding: EdgeInsets.symmetric(vertical: 16.0),
-          child: user == null ? Center(child: Text('Không có dữ liệu')) : Column(
+          child: row == null ? Center(child: Text('Không có dữ liệu')) : Column(
             children: [
               _buildUserDetailsItem(
                 label: 'Họ Tên',
-                text: '${user.fullName}',
-                content: user.fullName ?? ''
+                text: '${row.fullName}',
+                content: row.fullName ?? ''
               ),
               _buildUserDetailsItem(
                 label: 'SĐT',
-                text: '${user.phoneNumber}',
-                content: user.phoneNumber ?? ''
+                text: '${row.phoneNumber}',
+                content: row.phoneNumber ?? ''
               ),
               _buildUserDetailsItem(
                 label: 'Id',
-                text: '${user.userId?.replaceRange(0, user.userId!.length - 12, 'xxxxx-xxxxx-')}',
-                content: user.userId ?? '',
+                text: '${row.userId?.replaceRange(0, row.userId!.length - 12, 'xxxxx-xxxxx-')}',
+                content: row.userId ?? '',
+              ),
+              _buildUserDetailsItem(
+                label: 'Phiên bản app',
+                text: '${user?.appVersion}',
+                content: user?.appVersion ?? '',
               ),
               _buildUserDetailsItem(
                 label: 'Hệ Điều Hành',
-                text: '${user.platform}',
-                content: user.platform ?? '',
+                text: '${row.platform} ${user?.platformVersion}',
+                content: '${row.platform} ${user?.platformVersion}',
+              ),
+              _buildUserDetailsItem(
+                label: 'Dòng điện thoại',
+                text: '${user?.deviceModel}',
+                content: user?.deviceModel ?? '',
               ),
             ],
           ),
