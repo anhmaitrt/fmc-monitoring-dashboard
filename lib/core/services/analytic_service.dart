@@ -9,6 +9,7 @@ import 'package:fmc_monitoring_dashboard/model/user_model.dart';
 import '../../model/user_cgm_data_row.dart';
 import '../components/toast/model/loading_progress.dart';
 import 'google_drive_service.dart';
+import 'issue_tracker/issue_tracker.dart';
 
 class AnalyticService {
     AnalyticService._();
@@ -40,6 +41,7 @@ class AnalyticService {
             ]);
 
             _buildUserList(); // ✅ merge into userList
+            analyzeSyncRecovery(window: const Duration(minutes: 10));
         } catch (e, stackTrace) {
             print("Error getting files: $e\n$stackTrace");
             rethrow;
@@ -227,7 +229,7 @@ class AnalyticService {
             return an.compareTo(bn);
         });
 
-        print('Built userList: ${userList.length}');
+        // print('Built userList: ${userList.length}');
     }
 
     /// Keep day alignment:
@@ -276,6 +278,26 @@ class AnalyticService {
 
         return map;
     }
+
+    //#region TRACKING ISSUES
+    List<ErrorIncident> errorIncidents = [];
+    List<UserRecoverySummary> userRecoverySummaries = [];
+
+    /// Call this AFTER logList is ready
+    void analyzeSyncRecovery({Duration window = const Duration(minutes: 1440)}) {
+        // 1) build incidents (error -> recovered or not)
+        errorIncidents = IssueTracker.instance.analyzeRecoveryForAllUsers(
+            logList,
+            window: window,
+        );
+
+        // 2) summarize by user
+        userRecoverySummaries = IssueTracker.instance.summarizeRecoveryByUser(errorIncidents);
+
+        print('Analyze done: ${errorIncidents.length} incidents, '
+            '${userRecoverySummaries.length} users');
+    }
+    //#endregion
 
     Future<void> _runPool<T>({
         required List<T> items,

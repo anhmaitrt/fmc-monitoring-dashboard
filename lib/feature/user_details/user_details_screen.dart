@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:fmc_monitoring_dashboard/core/components/copyable_widget.dart';
 import 'package:fmc_monitoring_dashboard/core/components/scaffold_widget.dart';
 import 'package:fmc_monitoring_dashboard/core/utils/extension/string_extension.dart';
 import 'package:fmc_monitoring_dashboard/model/user_cgm_data_row.dart';
@@ -34,7 +35,10 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
   @override
   void initState() {
     super.initState();
-    _query = widget.phoneNumber ?? '';
+    if(!widget.phoneNumber.isNullOrEmpty) {
+      _query = widget.phoneNumber ?? '';
+      _searchCtrl.text = widget.phoneNumber ?? '';
+    }
   }
 
   @override
@@ -171,14 +175,15 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
       child: Row(
         children: [
           Text('$label:', style: TextStyle(fontWeight: FontWeight.bold),),
-          InkWell(
-            onTap: () => onTap(context, content),
-            hoverColor: Colors.blue.withOpacity(0.08),
-            child: Padding(
-              padding: const EdgeInsets.all(8),
-              child: SelectableText(text),
-            )
-          ),
+          CopyableWidget(text: content, copyableContent: text,),
+          // InkWell(
+          //   onTap: () => onTap(context, content),
+          //   hoverColor: Colors.blue.withOpacity(0.08),
+          //   child: Padding(
+          //     padding: const EdgeInsets.all(8),
+          //     child: SelectableText(text),
+          //   )
+          // ),
         ],
       ),
     );

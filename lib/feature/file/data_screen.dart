@@ -266,8 +266,8 @@ class _DataScreenState extends State<DataScreen> {
                       ? const BoxDecoration(color: AppColors.disableText)
                       : null,
                   children: [
-                    CellWidget(text: file.userId.maskUuid()),
-                    CellWidget(text: file.phoneNumber.maskPhone()),
+                    CellWidget(text: file.userId.maskUuid(), copyableContent: file.userId ?? ''),
+                    CellWidget(text: file.phoneNumber.maskPhone(), copyableContent: file.phoneNumber,),
                     CellWidget(text: file.fullName ?? ''),
                     CellWidget(text: file.platform ?? '', enableCopyOnTap: false),
                     CellWidget(

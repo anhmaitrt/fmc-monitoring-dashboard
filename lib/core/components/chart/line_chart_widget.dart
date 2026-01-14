@@ -142,59 +142,34 @@ class LineChartWidget extends StatelessWidget {
         touchTooltipData: LineTouchTooltipData(
           getTooltipColor: (touchedSpot) =>
               Colors.blueGrey.withValues(alpha: 0.4),
-          getTooltipItems: (touchedBarSpots) {
-            return _buildToolTip(touchedBarSpots);
-            // return subToolTipData.isNullOrEmpty() ? defaultLineTooltipItem(touchedBarSpots) : touchedBarSpots.map((barSpot) {
-            //   final flSpot = barSpot;
-            //   // print('Spot tooltip: ${flSpot.x}, ${flSpot.barIndex}');
-            //   // if (flSpot.x == 0 || flSpot.x == 6) {
-            //   //   return null;
-            //   // }
-            //
-            //   return LineTooltipItem(
-            //     '${flSpot.y}$unit\n',
-            //     TextStyle(
-            //       color: lineColors![flSpot.barIndex],
-            //       fontWeight: FontWeight.bold,
-            //     ),
-            //     children: [
-            //       TextSpan(
-            //         text: subToolTipData[flSpot.barIndex][flSpot.x.toInt()],
-            //         style: TextStyle(
-            //           color: lineColors![flSpot.barIndex],
-            //           fontSize: 9
-            //           // fontWeight: FontWeight.w900,
-            //         ),
-            //       ),
-            //     ],
-            //     textAlign: TextAlign.center,
-            //   );
-            // }).toList();
-          },
+          getTooltipItems: (touchedBarSpots) => _buildToolTip(touchedBarSpots),
         ),
-        // touchCallback: (event, lineTouch) {
-        //   print('Touch: ${event.}, $lineTouch');
-        //   // if (!event.isInterestedForInteractions ||
-        //   //     lineTouch == null ||
-        //   //     lineTouch.lineBarSpots == null) {
-        //   //   setState(() {
-        //   //     touchedValue = -1;
-        //   //   });
-        //   //   return;
-        //   // }
-        //   // final value = lineTouch.lineBarSpots![0].x;
-        //   //
-        //   // if (value == 0 || value == 6) {
-        //   //   setState(() {
-        //   //     touchedValue = -1;
-        //   //   });
-        //   //   return;
-        //   // }
-        //   //
-        //   // setState(() {
-        //   //   touchedValue = value;
-        //   // });
-        // },
+        touchCallback: (event, lineTouch) {
+          if(event is FlTapUpEvent) {
+            // lineTouch.lineBarSpots?.
+            print('Touch: ${event.isInterestedForInteractions} ${event}, $lineTouch');
+          }
+          // if (!event.isInterestedForInteractions ||
+          //     lineTouch == null ||
+          //     lineTouch.lineBarSpots == null) {
+          //   setState(() {
+          //     touchedValue = -1;
+          //   });
+          //   return;
+          // }
+          // final value = lineTouch.lineBarSpots![0].x;
+          //
+          // if (value == 0 || value == 6) {
+          //   setState(() {
+          //     touchedValue = -1;
+          //   });
+          //   return;
+          // }
+          //
+          // setState(() {
+          //   touchedValue = value;
+          // });
+        },
       );
 
   List<LineTooltipItem?> _buildToolTip(List<LineBarSpot> touchedBarSpots) {

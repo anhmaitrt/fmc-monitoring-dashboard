@@ -105,13 +105,21 @@ extension EListCSVLogModel on List<CSVLogModel> {
     final json = _latestAutoSyncJson(maxScan: maxScan);
     if (json == null) return null;
 
-    final info = json['info'];
-    if (info is! Map) return null;
-    final device = info['device'];
-    if (device is! Map) return null;
-    final version = device['version'];
-    if (version is! Map) return null;
+    final device = (json['info'] as Map?)?['device'] as Map?;
+    if (device == null) return null;
 
+    final platform = device['platform']?.toString();
+    final version = device['version'] as Map?;
+    if (version == null) return null;
+
+    if (platform == 'android') {
+      final release = version['release']?.toString(); // "14"
+      final sdkInt = version['sdkInt']?.toString();   // "34"
+      if (release == null) return null;
+      return 'Android $release (SDK $sdkInt)';
+    }
+
+    // ios
     return version['version']?.toString(); // Darwin Kernel Version ...
   }
 
@@ -122,7 +130,7 @@ extension EListCSVLogModel on List<CSVLogModel> {
     final msg = json['message']?.toString() ?? '';
     // message starts with: [3.6.3] ...
     final m = RegExp(r'^\s*\[([0-9]+(?:\.[0-9]+){1,3})\]').firstMatch(msg);
-    print('Getting app version ${m?.group(1)}: $msg');
+    // print('Getting app version ${m?.group(1)}: $msg');
     return m?.group(1); // 3.6.3
   }
 }

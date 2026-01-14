@@ -2,12 +2,17 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:fmc_monitoring_dashboard/core/components/chart/line_chart_widget.dart';
+import 'package:fmc_monitoring_dashboard/core/components/copyable_widget.dart';
+import 'package:fmc_monitoring_dashboard/core/routing/router.dart';
 import 'package:fmc_monitoring_dashboard/core/services/analytic_service.dart';
 import 'package:fmc_monitoring_dashboard/core/services/file/file_service.dart';
 import 'package:fmc_monitoring_dashboard/core/services/toast_service.dart';
 import 'package:fmc_monitoring_dashboard/core/style/app_colors.dart';
 import 'package:fmc_monitoring_dashboard/core/style/app_text_styles.dart';
+import 'package:fmc_monitoring_dashboard/core/utils/extension/string_extension.dart';
+import 'package:fmc_monitoring_dashboard/feature/user_details/user_details_screen.dart';
 import 'package:fmc_monitoring_dashboard/model/user_cgm_data_row.dart';
+import 'package:fmc_monitoring_dashboard/model/user_model.dart';
 
 
 class HomeScreen extends StatefulWidget {
@@ -39,6 +44,9 @@ class _HomeScreenState extends State<HomeScreen> {
     // For platform splits, do it based on *paged data*
     final androidUsers = page.splitByPlatform('android');
     final iosUsers = page.splitByPlatform('ios');
+
+    final summariesIssues = [...AnalyticService.instance.userRecoverySummaries]
+      ..sort((a, b) => (a.recoveredRate * 100).compareTo(b.recoveredRate * 100));
 
     return Scaffold(
       appBar: AppBar(
@@ -80,34 +88,70 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       backgroundColor: AppColors.backgroundDisable,
-      body: SizedBox(
-        height: double.infinity,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.max,
-            children: [
-              _buildChartPagingBar(totalItems: asc.length),
+      body: ListView(
+        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 24),
+        children: [
+          _buildChartPagingBar(totalItems: asc.length),
+          const SizedBox(height: 12),
 
-              const SizedBox(height: 12),
+          SizedBox(height: 350, child: _buildTotalCGMChart(page, androidUsers, iosUsers)),
+          Container(height: 350, margin: const EdgeInsets.only(top: 16), child: _buildInterruptionChart(page, androidUsers, iosUsers)),
+          Container(height: 380, margin: const EdgeInsets.only(top: 16), child: _buildInterruptionByPercentageRange(page, androidUsers, iosUsers)),
 
-              SizedBox(
-                height: 350,
-                child: _buildTotalCGMChart(page, androidUsers, iosUsers),
+          const SizedBox(height: 16),
+
+          RichText(
+              text: TextSpan(
+                text: 'Thống kê khách gặp sự cố trong khoảng 09:00 - 15:00 13/01/2026',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                children: [
+                  TextSpan(
+                    text: '\n${summariesIssues.length}/${AnalyticService.instance.userList.length} khách gặp sự cố'
+                        '\n${summariesIssues.where((e) => e.recoveredRate * 100 != 0).length} khôi phục lại được',
+                    style: TextStyle(fontWeight: FontWeight.normal),
+                  ),
+                ],
               ),
-              Container(
-                height: 350,
-                margin: const EdgeInsets.only(top: 16),
-                child: _buildInterruptionChart(page, androidUsers, iosUsers),
-              ),
-              Container(
-                height: 380,
-                margin: const EdgeInsets.only(top: 16),
-                child: _buildInterruptionByPercentageRange(page, androidUsers, iosUsers),
-              ),
-            ],
           ),
-        ),
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: summariesIssues.length,
+            itemBuilder: (_, i) {
+              final s = summariesIssues[i];
+              final user = AnalyticService.instance.userList.getUserById(s.userId);
+              final rate = (s.recoveredRate * 100).toStringAsFixed(0);
+              final avg = s.avgRecoveryTime == null ? '-' : '${s.avgRecoveryTime!.inMinutes}m';
+
+              return ListTile(
+                title: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('${i+1}. ${user?.fullName}', style: TextStyle(fontWeight: FontWeight.bold),),
+                    CopyableWidget(text: s.userId.maskUuid(), copyableContent: s.userId),
+                  ],
+                ),
+                subtitle: Text(
+                  'Recovered: $rate% | Avg recover: $avg | Errors: ${s.totalErrors}'
+                      '\n${user?.platformVersion} | ${user?.deviceModel} | ${user?.appVersion}',
+                ),
+                trailing: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    s.latestError?.errorCode != null
+                        ? Text('code=${s.latestError!.errorCode}') : const SizedBox.shrink(),
+                    TextButton(
+                      onPressed: () => context.navigateTo(
+                        UserDetailsScreen(phoneNumber: user?.phoneNumber ?? ''),
+                      ),
+                      child: const Text('Chi tiết'),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
       ),
     );
   }
@@ -390,10 +434,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // -----------------------
-  // ACTION
-  // -----------------------
-
+  //#region ACTION
   Future<void> _fetchData() async {
     try {
       setState(() => _isLoading = true);
@@ -432,4 +473,5 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() => _isLoading = false);
     }
   }
+  //#endregion
 }

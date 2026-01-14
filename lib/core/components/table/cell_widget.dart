@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:fmc_monitoring_dashboard/core/components/copyable_widget.dart';
 
 import '../../services/toast_service.dart';
 
@@ -7,9 +8,11 @@ class CellWidget extends StatelessWidget {
   const CellWidget({
     super.key,
     required this.text,
+    this.copyableContent,
     this.enableCopyOnTap = true
   });
   final String text;
+  final String? copyableContent;
   final bool enableCopyOnTap;
 
   @override
@@ -19,14 +22,7 @@ class CellWidget extends StatelessWidget {
 
   Widget _buildHighlight(BuildContext context) {
     if(enableCopyOnTap) {
-      return MouseRegion(
-        cursor: SystemMouseCursors.click,
-        child: InkWell(
-          onTap: () => onTap(context),
-          hoverColor: Colors.blue.withOpacity(0.08),
-          child: _buildContent(),
-        ),
-      );
+      return CopyableWidget(text: text);
     }
 
     return _buildContent();
@@ -45,8 +41,8 @@ class CellWidget extends StatelessWidget {
   Future<void> onTap(BuildContext context) async {
     try {
       if(enableCopyOnTap) {
-        await Clipboard.setData(ClipboardData(text: text));
-        ToastService.show(context: context, 'Đã copy $text', type: ToastType.info);
+        await Clipboard.setData(ClipboardData(text: copyableContent ?? ''));
+        ToastService.show(context: context, 'Đã copy $copyableContent', type: ToastType.info);
       }
     } catch (error, stackTrace) {
       ToastService.show(context: context, 'Đã có lỗi xảy ra, vui lòng thử lại', type: ToastType.error);
