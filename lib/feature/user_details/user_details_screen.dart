@@ -175,15 +175,7 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
       child: Row(
         children: [
           Text('$label:', style: TextStyle(fontWeight: FontWeight.bold),),
-          CopyableWidget(text: content, copyableContent: text,),
-          // InkWell(
-          //   onTap: () => onTap(context, content),
-          //   hoverColor: Colors.blue.withOpacity(0.08),
-          //   child: Padding(
-          //     padding: const EdgeInsets.all(8),
-          //     child: SelectableText(text),
-          //   )
-          // ),
+          CopyableWidget(text: text, copyableContent: content,),
         ],
       ),
     );

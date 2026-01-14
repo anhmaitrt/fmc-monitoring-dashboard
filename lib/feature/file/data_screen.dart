@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:fmc_monitoring_dashboard/core/components/table/cell_widget.dart';
 import 'package:fmc_monitoring_dashboard/core/routing/router.dart';
@@ -5,7 +7,10 @@ import 'package:fmc_monitoring_dashboard/core/services/analytic_service.dart';
 import 'package:fmc_monitoring_dashboard/core/utils/extension/string_extension.dart';
 import 'package:fmc_monitoring_dashboard/feature/user_details/user_details_screen.dart';
 import 'package:fmc_monitoring_dashboard/model/user_cgm_data_row.dart';
+import 'package:fmc_monitoring_dashboard/model/user_model.dart';
 
+import '../../core/components/chart/line_chart_widget.dart';
+import '../../core/components/copyable_widget.dart';
 import '../../core/services/toast_service.dart';
 import '../../core/style/app_colors.dart';
 import '../../core/utils/extension/date_extension.dart';
@@ -115,6 +120,7 @@ class _DataScreenState extends State<DataScreen> {
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
+                  _buildUserDetails(),
                   ..._pagedGroups.map((files) => _buildTable(files)),
                 ],
               ),
@@ -126,6 +132,7 @@ class _DataScreenState extends State<DataScreen> {
     );
   }
 
+  //#region UI
   Widget _buildSearchBar() {
     return Container(
       color: AppColors.white,
@@ -155,6 +162,120 @@ class _DataScreenState extends State<DataScreen> {
           ),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         ),
+      ),
+    );
+  }
+
+  Widget _buildUserDetails() {
+    UserCGMDataRow? row;
+    if(_pagedGroups.every((e) => e.every((f) => f.phoneNumber == _query || f.userId == _query))) {
+      row = _pagedGroups.firstOrNull?.firstOrNull;
+    }
+
+    final user = AnalyticService.instance.userList.getUserById(row?.userId ?? '');
+    return row == null ? SizedBox() : Column(
+      mainAxisSize: MainAxisSize.max,
+      children: [
+        SizedBox(
+          width: double.infinity,
+          child: Card.filled(
+            color: AppColors.white,
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 16.0),
+              child: row == null ? Center(child: Text('Không có dữ liệu')) : Column(
+                children: [
+                  _buildUserDetailsItem(
+                      label: 'Họ Tên',
+                      text: '${row.fullName}',
+                      content: row.fullName ?? ''
+                  ),
+                  _buildUserDetailsItem(
+                      label: 'SĐT',
+                      text: row.phoneNumber.maskPhone(),
+                      content: row.phoneNumber ?? ''
+                  ),
+                  _buildUserDetailsItem(
+                    label: 'Id',
+                    text: '${row.userId?.maskUuid()}',
+                    content: row.userId ?? '',
+                  ),
+                  _buildUserDetailsItem(
+                    label: 'Phiên bản app',
+                    text: '${user?.appVersion}',
+                    content: user?.appVersion ?? '',
+                  ),
+                  _buildUserDetailsItem(
+                    label: 'Hệ Điều Hành',
+                    text: '${row.platform} ${user?.platformVersion}',
+                    content: '${row.platform} ${user?.platformVersion}',
+                  ),
+                  _buildUserDetailsItem(
+                    label: 'Dòng điện thoại',
+                    text: '${user?.deviceModel}',
+                    content: user?.deviceModel ?? '',
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Container(
+            height: 350,
+            margin: EdgeInsets.only(top: 16),
+            child: _buildInterruptionChart(user != null ? _filteredGroups.reversed.toList() : [])
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInterruptionChart(
+      List<List<UserCGMDataRow>> data,
+      ) {
+    if(data.isEmpty) {
+      return Center(
+        child: Text('Không có dữ liệu'),
+      );
+    }
+    final interruptionPercentageList = data.map((f) => f.percentageInterruption).toList();
+
+    // print('android user: ${androidUsers.length} - $androidPercentageInterruptionList'
+    //     '\nios user: ${iosUser.length} - $iosPercentageInterruptionList');
+    return Card.filled(
+      color: AppColors.white,
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: 16.0),
+        child: LineChartWidget(
+          chartName: 'Tỉ lệ chậm đồng bộ theo ngày',
+          maxX: data.maxX,
+          maxY: [...interruptionPercentageList,].reduce(max),
+          topTitles: [],
+          bottomTitles: data.toDateList(),
+          leftTitles: [],
+          leftAxisName: '%',
+          lineDataList: [interruptionPercentageList],
+          lineTitleList: [],
+          subToolTipData: [
+            data.map((f) => '${f.getUserWithLongestGap().fullName} (${f.totalGapTimeInHour.toStringAsFixed(1)}h)').toList(),
+          ],
+          unit: '%',
+          lineColors: [Colors.lightBlue.shade400],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUserDetailsItem({
+    required String label,
+    required String text,
+    required String content,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: Row(
+        children: [
+          Text('$label:', style: TextStyle(fontWeight: FontWeight.bold),),
+          CopyableWidget(text: text, copyableContent: content,),
+        ],
       ),
     );
   }
@@ -291,6 +412,7 @@ class _DataScreenState extends State<DataScreen> {
       ),
     );
   }
+  //#endregion
 
   // -----------------------
   // ACTION

@@ -106,7 +106,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
                 children: [
                   TextSpan(
-                    text: '\n${summariesIssues.length}/${AnalyticService.instance.userList.length} khách gặp sự cố'
+                    text: '\n${summariesIssues.length}/${AnalyticService.instance.userList.getAndroidUsers().length} khách gặp sự cố'
                         '\n${summariesIssues.where((e) => e.recoveredRate * 100 != 0).length} khôi phục lại được',
                     style: TextStyle(fontWeight: FontWeight.normal),
                   ),

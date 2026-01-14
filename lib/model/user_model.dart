@@ -38,4 +38,26 @@ extension EListUserModel on List<UserModel> {
   UserModel? getUserById(String id) {
     return firstWhereOrNull((e) => e.userId == id);
   }
+
+  List<UserModel> getAndroidUsers() {
+    // if(hasDuplicateUserId()) {
+    //   print('User list has duplicates');
+    // }
+    // final result = uniqueByUserId();
+    return /*result.*/where((e) => e.platform == 'android').toList();
+  }
+
+  bool hasDuplicateUserId() {
+    final ids = map((e) => e.userId).whereType<String>().toList();
+    return ids.length != ids.toSet().length;
+  }
+
+  List<UserModel> uniqueByUserId() {
+    final seen = <String>{};
+    return where((u) {
+      final id = u.userId;
+      if (id == null) return true; // or false if you want to drop null ids
+      return seen.add(id); // add() returns false if already exists
+    }).toList();
+  }
 }

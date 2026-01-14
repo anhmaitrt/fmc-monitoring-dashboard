@@ -22,7 +22,7 @@ class CellWidget extends StatelessWidget {
 
   Widget _buildHighlight(BuildContext context) {
     if(enableCopyOnTap) {
-      return CopyableWidget(text: text);
+      return CopyableWidget(text: text, copyableContent: copyableContent,);
     }
 
     return _buildContent();

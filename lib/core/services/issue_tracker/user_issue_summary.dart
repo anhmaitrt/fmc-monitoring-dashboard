@@ -31,7 +31,7 @@ List<UserRecoverySummary> summarizeRecoveryByUser(List<ErrorIncident> incidents)
     final recovered = list.where((x) => x.recovered).length;
 
     final recoveredDurations = list
-        .map((x) => x.timeToRecover)
+        .map((x) => x.recoveryTime)
         .whereType<Duration>()
         .toList();
 
