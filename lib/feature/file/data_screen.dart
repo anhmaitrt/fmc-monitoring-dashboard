@@ -122,6 +122,7 @@ class _DataScreenState extends State<DataScreen> {
               child: Column(
                 children: [
                   _buildUserDetails(),
+                  const SizedBox(height: 16,),
                   ..._pagedGroups.map((files) {
                     final searched = files.filter(_query);
                     final filtered = searched.filterByRange(_rangeFilter);
@@ -198,16 +199,17 @@ class _DataScreenState extends State<DataScreen> {
     }
 
     final user = AnalyticService.instance.userList.getUserById(row?.userId ?? '');
-    return row == null ? SizedBox() : Column(
-      mainAxisSize: MainAxisSize.max,
-      children: [
-        SizedBox(
-          width: double.infinity,
-          child: Card.filled(
-            color: AppColors.white,
-            child: Padding(
+    return row == null ? SizedBox() :
+    SizedBox(
+      width: double.infinity,
+      child: Card.filled(
+        color: AppColors.white,
+        child: Column(
+          mainAxisSize: MainAxisSize.max,
+          children: [
+            Padding(
               padding: EdgeInsets.symmetric(vertical: 16.0),
-              child: row == null ? Center(child: Text('Không có dữ liệu')) : Column(
+              child: Column(
                 children: [
                   _buildUserDetailsItem(
                       label: 'Họ Tên',
@@ -242,14 +244,13 @@ class _DataScreenState extends State<DataScreen> {
                 ],
               ),
             ),
-          ),
+            SizedBox(
+              height: 350,
+              child: _buildInterruptionChart(user != null ? _pagedGroups.reversed.toList() : [])
+            ),
+          ],
         ),
-        Container(
-            height: 350,
-            margin: EdgeInsets.only(top: 16),
-            child: _buildInterruptionChart(user != null ? _filteredGroups.reversed.toList() : [])
-        ),
-      ],
+      ),
     );
   }
 
@@ -265,26 +266,23 @@ class _DataScreenState extends State<DataScreen> {
 
     // print('android user: ${androidUsers.length} - $androidPercentageInterruptionList'
     //     '\nios user: ${iosUser.length} - $iosPercentageInterruptionList');
-    return Card.filled(
-      color: AppColors.white,
-      child: Padding(
-        padding: EdgeInsets.symmetric(vertical: 16.0),
-        child: LineChartWidget(
-          chartName: 'Tỉ lệ chậm đồng bộ theo ngày',
-          maxX: data.maxX,
-          maxY: [...interruptionPercentageList,].reduce(max),
-          topTitles: [],
-          bottomTitles: data.toDateList(),
-          leftTitles: [],
-          leftAxisName: '%',
-          lineDataList: [interruptionPercentageList],
-          lineTitleList: [],
-          subToolTipData: [
-            data.map((f) => '${f.getUserWithLongestGap().fullName} (${f.totalGapTimeInHour.toStringAsFixed(1)}h)').toList(),
-          ],
-          unit: '%',
-          lineColors: [Colors.lightBlue.shade400],
-        ),
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 16.0),
+      child: LineChartWidget(
+        chartName: 'Tỉ lệ chậm đồng bộ theo ngày',
+        maxX: data.maxX,
+        maxY: [...interruptionPercentageList,].reduce(max),
+        topTitles: [],
+        bottomTitles: data.toDateList(),
+        leftTitles: [],
+        leftAxisName: '%',
+        lineDataList: [interruptionPercentageList],
+        lineTitleList: [],
+        subToolTipData: [
+          data.map((f) => '${f.getUserWithLongestGap().fullName} (${f.totalGapTimeInHour.toStringAsFixed(1)}h)').toList(),
+        ],
+        unit: '%',
+        lineColors: [Colors.lightBlue.shade400],
       ),
     );
   }
@@ -425,9 +423,24 @@ class _DataScreenState extends State<DataScreen> {
                       text: file.summarizeSyncGaps(),
                       enableCopyOnTap: false,
                     ),
-                    TextButton(onPressed: () {
-                      context.navigateTo(UserDetailsScreen(phoneNumber: file.phoneNumber,));
-                    }, child: Text('Chi tiết')),
+                    Column(
+                      children: [
+                        // TextButton(onPressed: () =>
+                        //     context.navigateTo(UserDetailsScreen(phoneNumber: file
+                        //         .phoneNumber,)),
+                        //   child: Text('Chi tiết'),),
+                        TextButton(
+                          child: Text('Lọc'),
+                          onPressed: () => setState(() {
+                            if(file.phoneNumber.isNullOrEmpty) {
+                              return;
+                            }
+                            _query = file.phoneNumber!.trim().toLowerCase();
+                            _searchCtrl.text = _query;
+                          }),
+                        ),
+                      ],
+                    )
                   ],
                 );
               }),

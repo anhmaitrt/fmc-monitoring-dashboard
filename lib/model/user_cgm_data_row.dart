@@ -298,18 +298,15 @@ extension EListUserCGMDataRow on List<UserCGMDataRow> {
       }
     }
 
-    return InterruptionRange.values.map((e) => '${e.label}: '
-        '${androidInterruptionRangeCount[e]} (${(androidInterruptionRangeCount[e]!/countAndroid*100).toStringAsFixed(1)}%) khách android, '
-        '${iosInterruptionRangeCount[e]} (${(iosInterruptionRangeCount[e]!/countIos*100).toStringAsFixed(1)}%) khách ios').join('\n');
+    return InterruptionRange.values.map((e) => '${e.label}: ${
+        androidInterruptionRangeCount[e] == 0 && iosInterruptionRangeCount[e] == 0
+            ? '-'
+            : '${androidInterruptionRangeCount[e]} ${androidInterruptionRangeCount[e] == 0 ? '' : '(${(androidInterruptionRangeCount[e]!/countAndroid*100).toStringAsFixed(1)}%)'} android, '
+            '${iosInterruptionRangeCount[e]} ${iosInterruptionRangeCount[e] == 0 ? '' : '(${(iosInterruptionRangeCount[e]!/countIos*100).toStringAsFixed(1)}%)'} ios'
+    }').join('\n');
   }
 
   List<double> filterUserByInterruptionRangeByPlatform(String platform) {
-    double countUser = 0;
-    // double under20 = 0;
-    // double over20 = 0;
-    // double over50 = 0;
-    // double over80 = 0;
-    // double stopSync = 0;
     Map<InterruptionRange, double> interruptionRangeCount = {};
 
     for (var e in InterruptionRange.values) {
@@ -320,56 +317,12 @@ extension EListUserCGMDataRow on List<UserCGMDataRow> {
     for(int i = 0; i < length; i++) {
       interruptionPercentage = this[i].interruptionPercentage;
       if(this[i].platform == platform) {
-        countUser++;
         interruptionRangeCount[InterruptionRange.fromPercent(interruptionPercentage)] = interruptionRangeCount[InterruptionRange.fromPercent(interruptionPercentage)]! + 1;
       }
     }
 
     return interruptionRangeCount.values.toList();
   }
-
-  // List<UserCGMFile> getPercentageRangeByUser(String platform) {
-  //   double countAndroid = 0;
-  //   double androidUnder20 = 0;
-  //   double androidOver20 = 0;
-  //   double androidOver50 = 0;
-  //   double androidOver80 = 0;
-  //
-  //   // int countIos = 0;
-  //   // int iosUnder20 = 0;
-  //   // int iosOver20 = 0;
-  //   // int iosOver50 = 0;
-  //   // int iosOver80 = 0;
-  //
-  //   for(int i = 0; i < length; i++) {
-  //     if(this[i].platform == platform) {
-  //       countAndroid++;
-  //       if(this[i].percentageInterruption < 20) {
-  //         androidUnder20++;
-  //       } else if(this[i].percentageInterruption >= 20 && this[i].percentageInterruption < 50) {
-  //         androidOver20++;
-  //       } else if(this[i].percentageInterruption >= 50 && this[i].percentageInterruption < 80) {
-  //         androidOver50++;
-  //       } else if(this[i].percentageInterruption >= 80) {
-  //         androidOver80++;
-  //       }
-  //     }
-  //     // else if(this[i].platform == 'ios') {
-  //     //   countIos++;
-  //     //   if(this[i].percentageInterruption < 20) {
-  //     //     iosUnder20++;
-  //     //   } else if(this[i].percentageInterruption >= 20 && this[i].percentageInterruption < 50) {
-  //     //     iosOver20++;
-  //     //   } else if(this[i].percentageInterruption >= 50 && this[i].percentageInterruption < 80) {
-  //     //     iosOver50++;
-  //     //   } else if(this[i].percentageInterruption >= 80) {
-  //     //     iosOver80++;
-  //     //   }
-  //     // }
-  //   }
-  //
-  //   return [androidUnder20, androidOver20, androidOver50, androidOver80];
-  // }
 }
 
 extension EListListCgmDataRow on List<List<UserCGMDataRow>> {
