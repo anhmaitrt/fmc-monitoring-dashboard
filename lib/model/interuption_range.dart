@@ -30,29 +30,3 @@ extension InterruptionRangeUI on InterruptionRange {
     }
   }
 }
-
-extension EUserCGMFileRange on UserCGMDataRow {
-  bool get _isX {
-    final p = interruptionPercentage;
-    if (p == null) return true;
-    if (!p.isFinite) return true;
-    return p >= 100; // <-- adjust if your "X" definition differs
-  }
-
-  InterruptionRange get interruptionRange {
-    final p = interruptionPercentage;
-    if (_isX) return InterruptionRange.x;
-    if (p == null) return InterruptionRange.x;
-    if (p >= 80) return InterruptionRange.gte80;
-    if (p >= 50) return InterruptionRange.gte50;
-    if (p >= 20) return InterruptionRange.gte20;
-    return InterruptionRange.lt20;
-  }
-}
-
-extension EListUserCGMFileRange on List<UserCGMDataRow> {
-  List<UserCGMDataRow> filterByRange(InterruptionRange? range) {
-    if (range == null) return this;
-    return where((e) => e.interruptionRange == range).toList();
-  }
-}

@@ -226,6 +226,11 @@ extension EListUserCGMDataRow on List<UserCGMDataRow> {
     }).toList();
   }
 
+  List<UserCGMDataRow> filterByRange(InterruptionRange? range) {
+    if (range == null) return this;
+    return where((e) => InterruptionRange.fromPercent(e.interruptionPercentage) == range).toList();
+  }
+
   int countByPlatform(String platform) {
     var count = 0;
     forEach((d) {
