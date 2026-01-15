@@ -14,6 +14,7 @@ import '../../core/components/copyable_widget.dart';
 import '../../core/services/toast_service.dart';
 import '../../core/style/app_colors.dart';
 import '../../core/utils/extension/date_extension.dart';
+import '../../model/interuption_range.dart';
 
 class DataScreen extends StatefulWidget {
   const DataScreen({super.key});
@@ -121,7 +122,11 @@ class _DataScreenState extends State<DataScreen> {
               child: Column(
                 children: [
                   _buildUserDetails(),
-                  ..._pagedGroups.map((files) => _buildTable(files)),
+                  ..._pagedGroups.map((files) {
+                    final searched = files.filter(_query);
+                    final filtered = searched.filterByRange(_rangeFilter);
+                    return _buildTable(filtered);
+                  }),
                 ],
               ),
             ),
@@ -133,35 +138,55 @@ class _DataScreenState extends State<DataScreen> {
   }
 
   //#region UI
+  InterruptionRange? _rangeFilter; // null = All
+
   Widget _buildSearchBar() {
     return Container(
       color: AppColors.white,
       padding: const EdgeInsets.all(16),
-      child: TextField(
-        controller: _searchCtrl,
-        onChanged: (v) {
-          setState(() {
-            _query = v.trim().toLowerCase();
-            _pageIndex = 0; // ✅ reset page when searching
-          });
-        },
-        decoration: InputDecoration(
-          hintText: 'Nhập từ khóa để tìm kiếm id / phone / name / platform...',
-          prefixIcon: const Icon(Icons.search),
-          suffixIcon: _query.isEmpty
-              ? null
-              : IconButton(
-            icon: const Icon(Icons.clear),
-            onPressed: () {
-              _searchCtrl.clear();
-              setState(() {
-                _query = '';
-                _pageIndex = 0; // ✅ reset page when clearing
-              });
-            },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            controller: _searchCtrl,
+            onChanged: (v) => setState(() => _query = v.trim().toLowerCase()),
+            decoration: InputDecoration(
+              hintText: 'Nhập từ khóa để tìm kiếm id / phone / name / platform...',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: _query.isEmpty
+                  ? null
+                  : IconButton(
+                icon: const Icon(Icons.clear),
+                onPressed: () {
+                  _searchCtrl.clear();
+                  setState(() => _query = '');
+                },
+              ),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            ),
           ),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        ),
+
+          const SizedBox(height: 12),
+
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              FilterChip(
+                label: const Text('Tất cả'),
+                selected: _rangeFilter == null,
+                onSelected: (_) => setState(() => _rangeFilter = null),
+              ),
+              ...InterruptionRange.values.map((r) {
+                return FilterChip(
+                  label: Text(r.label),
+                  selected: _rangeFilter == r,
+                  onSelected: (_) => setState(() => _rangeFilter = r),
+                );
+              }),
+            ],
+          ),
+        ],
       ),
     );
   }

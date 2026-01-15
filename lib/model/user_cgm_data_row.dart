@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:fmc_monitoring_dashboard/core/utils/extension/date_extension.dart';
 import 'package:fmc_monitoring_dashboard/core/utils/extension/string_extension.dart';
 import 'package:fmc_monitoring_dashboard/model/export/issue_export_row.dart';
+import 'package:fmc_monitoring_dashboard/model/interuption_range.dart';
 import 'package:fmc_monitoring_dashboard/model/sync_gap.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:json_annotation/json_annotation.dart';
@@ -275,159 +276,56 @@ extension EListUserCGMDataRow on List<UserCGMDataRow> {
 
   String summarizeSyncGaps() {
     int countAndroid = 0;
-    int androidUnder20 = 0;
-    int androidOver20 = 0;
-    int androidOver50 = 0;
-    int androidOver80 = 0;
-    int androidStopSync = 0;
+    Map<InterruptionRange, double> androidInterruptionRangeCount = {};
 
     int countIos = 0;
-    int iosUnder20 = 0;
-    int iosOver20 = 0;
-    int iosOver50 = 0;
-    int iosOver80 = 0;
-    int iosStopSync = 0;
+    Map<InterruptionRange, double> iosInterruptionRangeCount = {};
+
+    for (var e in InterruptionRange.values) {
+      androidInterruptionRangeCount[e] = 0;
+      iosInterruptionRangeCount[e] = 0;
+    }
 
     double interruptionPercentage = 0;
     for(int i = 0; i < length; i++) {
       interruptionPercentage = this[i].interruptionPercentage;
       if(this[i].platform == 'android') {
         countAndroid++;
-        if(interruptionPercentage < 20) {
-          androidUnder20++;
-        } else if(interruptionPercentage >= 20 && interruptionPercentage < 50) {
-          androidOver20++;
-        } else if(interruptionPercentage >= 50 && interruptionPercentage < 80) {
-          androidOver50++;
-        } else if(interruptionPercentage >= 99.93 && interruptionPercentage <= 99.99 && Settings.filterStopSync) {
-          androidStopSync++;
-        } else if(interruptionPercentage >= 80) {
-          androidOver80++;
-        }
+        androidInterruptionRangeCount[InterruptionRange.fromPercent(interruptionPercentage)] = androidInterruptionRangeCount[InterruptionRange.fromPercent(interruptionPercentage)]! + 1;
       } else if(this[i].platform == 'ios') {
         countIos++;
-        if(interruptionPercentage < 20) {
-          iosUnder20++;
-        } else if(interruptionPercentage >= 20 && interruptionPercentage < 50) {
-          iosOver20++;
-        } else if(interruptionPercentage >= 50 && interruptionPercentage < 80) {
-          iosOver50++;
-        } else if(interruptionPercentage >= 99.93 && interruptionPercentage <= 99.99 && Settings.filterStopSync) {
-          iosStopSync++;
-        } else if(interruptionPercentage >= 80) {
-          iosOver80++;
-        }
+        iosInterruptionRangeCount[InterruptionRange.fromPercent(interruptionPercentage)] = iosInterruptionRangeCount[InterruptionRange.fromPercent(interruptionPercentage)]! + 1;
       }
     }
 
-    return'<20: $androidUnder20 android (${(androidUnder20/countAndroid*100).toStringAsFixed(1)}%), $iosUnder20 ios (${(iosUnder20/countIos*100).toStringAsFixed(1)}%)'
-        '\n≥20%: $androidOver20 android (${(androidOver20/countAndroid*100).toStringAsFixed(1)}%), $iosOver20 ios (${(iosOver20/countIos*100).toStringAsFixed(1)}%)'
-        '\n≥50%: $androidOver50 android (${(androidOver50/countAndroid*100).toStringAsFixed(1)}%), $iosOver50 ios (${(iosOver50/countIos*100).toStringAsFixed(1)}%)'
-        '\n≥80%: $androidOver80 android (${(androidOver80/countAndroid*100).toStringAsFixed(1)}%), $iosOver80 ios (${(iosOver80/countIos*100).toStringAsFixed(1)}%)'
-        '\nX: $androidStopSync android (${(androidStopSync/countAndroid*100).toStringAsFixed(1)}%), $iosStopSync ios (${(iosStopSync/countIos*100).toStringAsFixed(1)}%)';
+    return InterruptionRange.values.map((e) => '${e.label}: '
+        '${androidInterruptionRangeCount[e]} (${(androidInterruptionRangeCount[e]!/countAndroid*100).toStringAsFixed(1)}%) khách android, '
+        '${iosInterruptionRangeCount[e]} (${(iosInterruptionRangeCount[e]!/countIos*100).toStringAsFixed(1)}%) khách ios').join('\n');
   }
 
-  // String summarizeGapKeepValue() {
-  //   int countAndroid = 0;
-  //   int androidUnder20 = 0;
-  //   int androidOver20 = 0;
-  //   int androidOver50 = 0;
-  //   int androidOver80 = 0;
-  //   int androidStopSync = 0;
-  //
-  //   int countIos = 0;
-  //   int iosUnder20 = 0;
-  //   int iosOver20 = 0;
-  //   int iosOver50 = 0;
-  //   int iosOver80 = 0;
-  //   int iosStopSync = 0;
-  //
-  //   double interruptionPercentage = 0;
-  //   for(int i = 0; i < length; i++) {
-  //     interruptionPercentage = this[i].interruptionPercentage;
-  //     if(this[i].platform == 'android') {
-  //       countAndroid++;
-  //       if(interruptionPercentage < 20) {
-  //         androidUnder20++;
-  //       } else if(interruptionPercentage >= 20 && interruptionPercentage < 50) {
-  //         androidOver20++;
-  //       } else if(interruptionPercentage >= 50 && interruptionPercentage < 80) {
-  //         androidOver50++;
-  //       } else if(interruptionPercentage >= 99.93 && interruptionPercentage <= 99.99 && Settings.filterStopSync) {
-  //         androidStopSync++;
-  //       } else if(interruptionPercentage >= 80) {
-  //         androidOver80++;
-  //       }
-  //     } else if(this[i].platform == 'ios') {
-  //       countIos++;
-  //       if(interruptionPercentage < 20) {
-  //         iosUnder20++;
-  //       } else if(interruptionPercentage >= 20 && interruptionPercentage < 50) {
-  //         iosOver20++;
-  //       } else if(interruptionPercentage >= 50 && interruptionPercentage < 80) {
-  //         iosOver50++;
-  //       } else if(interruptionPercentage >= 99.93 && interruptionPercentage <= 99.99 && Settings.filterStopSync) {
-  //         iosStopSync++;
-  //       } else if(interruptionPercentage >= 80) {
-  //         iosOver80++;
-  //       }
-  //     }
-  //   }
-  //
-  //   String result = '';
-  //   if(androidUnder20 != 0) {
-  //     result += 'Android <20%: $androidUnder20\n';
-  //   } else if (iosUnder20 != 0) {
-  //     result += 'iOS <20%: $iosUnder20\n';
-  //   } else if (androidOver20 != 0) {
-  //     result += 'Android ≥20%: $androidOver20\n';
-  //   } else if (iosOver20 != 0) {
-  //     result += 'iOS ≥20%: $iosOver20\n';
-  //   } else if (androidOver50 != 0) {
-  //     result += 'Android ≥50%: $androidOver50\n';
-  //   } else if (iosOver50 != 0) {
-  //     result += 'iOS ≥50%: $iosOver50\n';
-  //   } else if (androidOver80 != 0) {
-  //     result += 'Android ≥80%: $androidOver80\n';
-  //   } else if (iosOver80 != 0) {
-  //     result += 'iOS ≥80%: $iosOver80\n';
-  //   } else if (androidStopSync != 0) {
-  //     result += 'Android X: $androidStopSync\n';
-  //   } else if (iosStopSync != 0) {
-  //     result += 'iOS X: $iosStopSync\n';
-  //   }
-  //
-  //   return result;
-  // }
-
-  List<double> getPercentageRange(String platform) {
+  List<double> filterUserByInterruptionRangeByPlatform(String platform) {
     double countUser = 0;
-    double under20 = 0;
-    double over20 = 0;
-    double over50 = 0;
-    double over80 = 0;
-    double stopSync = 0;
+    // double under20 = 0;
+    // double over20 = 0;
+    // double over50 = 0;
+    // double over80 = 0;
+    // double stopSync = 0;
+    Map<InterruptionRange, double> interruptionRangeCount = {};
+
+    for (var e in InterruptionRange.values) {
+      interruptionRangeCount[e] = 0;
+    }
 
     double interruptionPercentage = 0;
     for(int i = 0; i < length; i++) {
       interruptionPercentage = this[i].interruptionPercentage;
       if(this[i].platform == platform) {
         countUser++;
-        if(interruptionPercentage < 20) {
-          under20++;
-        } else if(interruptionPercentage >= 20 && interruptionPercentage < 50) {
-          over20++;
-        } else if(interruptionPercentage >= 50 && interruptionPercentage < 80) {
-          over50++;
-        } else if(interruptionPercentage >= 99.93 && interruptionPercentage <= 99.99 && Settings.filterStopSync) {
-          stopSync++;
-        } else if(interruptionPercentage >= 80) {
-          over80++;
-        }
+        interruptionRangeCount[InterruptionRange.fromPercent(interruptionPercentage)] = interruptionRangeCount[InterruptionRange.fromPercent(interruptionPercentage)]! + 1;
       }
     }
 
-    return [under20, over20, over50, over80, stopSync];
+    return interruptionRangeCount.values.toList();
   }
 
   // List<UserCGMFile> getPercentageRangeByUser(String platform) {

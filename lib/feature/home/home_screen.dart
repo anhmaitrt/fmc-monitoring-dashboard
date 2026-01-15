@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:fmc_monitoring_dashboard/core/components/chart/line_chart_widget.dart';
 import 'package:fmc_monitoring_dashboard/core/components/copyable_widget.dart';
@@ -13,6 +14,8 @@ import 'package:fmc_monitoring_dashboard/core/utils/extension/string_extension.d
 import 'package:fmc_monitoring_dashboard/feature/user_details/user_details_screen.dart';
 import 'package:fmc_monitoring_dashboard/model/user_cgm_data_row.dart';
 import 'package:fmc_monitoring_dashboard/model/user_model.dart';
+
+import '../../model/interuption_range.dart';
 
 
 class HomeScreen extends StatefulWidget {
@@ -358,17 +361,17 @@ class _HomeScreenState extends State<HomeScreen> {
     final cappedAndroid = androidUsers.length > hardCap ? androidUsers.sublist(androidUsers.length - hardCap) : androidUsers;
     final cappedIos = iosUsers.length > hardCap ? iosUsers.sublist(iosUsers.length - hardCap) : iosUsers;
 
-    final androidRanges = cappedAndroid.map((f) => f.getPercentageRange('android')).toList();
-    final iosRanges = cappedIos.map((f) => f.getPercentageRange('ios')).toList();
+    final androidUserInterruptionByRange = cappedAndroid.map((f) => f.filterUserByInterruptionRangeByPlatform('android')).toList();
+    final iosUserInterruptionByRange = cappedIos.map((f) => f.filterUserByInterruptionRangeByPlatform('ios')).toList();
 
     double maxAndroid = 0;
-    if (androidRanges.isNotEmpty) {
-      maxAndroid = androidRanges.map((a) => a.reduce(max)).reduce(max).toDouble();
+    if (androidUserInterruptionByRange.isNotEmpty) {
+      maxAndroid = androidUserInterruptionByRange.map((a) => a.reduce(max)).reduce(max).toDouble();
     }
 
     double maxIos = 0;
-    if (iosRanges.isNotEmpty) {
-      maxIos = iosRanges.map((a) => a.reduce(max)).reduce(max).toDouble();
+    if (iosUserInterruptionByRange.isNotEmpty) {
+      maxIos = iosUserInterruptionByRange.map((a) => a.reduce(max)).reduce(max).toDouble();
     }
 
     final lineColors = [
@@ -378,6 +381,13 @@ class _HomeScreenState extends State<HomeScreen> {
       Colors.red.shade400,
       Colors.red.shade900,
     ];
+
+    final androidLineDataList = <List<double>>[];
+    final iosLineDataList = <List<double>>[];
+    InterruptionRange.values.forEachIndexed((i, e) {
+      androidLineDataList.add(androidUserInterruptionByRange.map((a) => a[i]).toList());
+      iosLineDataList.add(iosUserInterruptionByRange.map((a) => a[i]).toList());
+    });
 
     return Row(
       children: [
@@ -391,14 +401,8 @@ class _HomeScreenState extends State<HomeScreen> {
               topTitles: cappedAndroid.map((f) => '${f.length}').toList(),
               bottomTitles: cappedData.toDateList(),
               leftTitles: const [],
-              lineDataList: [
-                androidRanges.map((a) => a[0].toDouble()).toList(),
-                androidRanges.map((a) => a[1].toDouble()).toList(),
-                androidRanges.map((a) => a[2].toDouble()).toList(),
-                androidRanges.map((a) => a[3].toDouble()).toList(),
-                androidRanges.map((a) => a[4].toDouble()).toList(),
-              ],
-              lineTitleList: const ['<20%', '≥20%', '≥50%', '≥80%', 'Ngưng đồng bộ'],
+              lineDataList: androidLineDataList,
+              lineTitleList: InterruptionRange.values.map((e) => e.label).toList(),
               subToolTipData: const [],
               unit: ' khách',
               lineColors: lineColors,
@@ -416,14 +420,8 @@ class _HomeScreenState extends State<HomeScreen> {
               topAxisName: 'Số lượng khách',
               bottomTitles: cappedData.toDateList(),
               leftTitles: const [],
-              lineDataList: [
-                iosRanges.map((a) => a[0].toDouble()).toList(),
-                iosRanges.map((a) => a[1].toDouble()).toList(),
-                iosRanges.map((a) => a[2].toDouble()).toList(),
-                iosRanges.map((a) => a[3].toDouble()).toList(),
-                iosRanges.map((a) => a[4].toDouble()).toList(),
-              ],
-              lineTitleList: const ['<20%', '≥20%', '≥50%', '≥80%', 'Ngưng đồng bộ'],
+              lineDataList: iosLineDataList,
+              lineTitleList: InterruptionRange.values.map((e) => e.label).toList(),
               subToolTipData: const [],
               unit: ' khách',
               lineColors: lineColors,

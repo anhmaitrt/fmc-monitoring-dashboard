@@ -1,3 +1,3 @@
 class Settings {
-  static bool filterStopSync = false;
+  static bool filterStopSync = true;
 }
