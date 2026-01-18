@@ -35,11 +35,12 @@ class GoogleDriveService {
         }
     }
 
-    Future<List<drive.File>> readFolder(String folderId) async {
+    Future<List<drive.File>> readFolder(String folderId, {int pageSize = 30}) async {
         try {
             final result = (await _driveApi!.files.list(
-                q: "'$folderId' in parents", // Query to get files from the folder
+                q: "'$folderId' in parents and trashed=false", // Query to get files from the folder
                 $fields: "files(id,name)", // Fields to retrieve
+                pageSize: pageSize
             )).files ?? [];
             print('Read ${result.length} files from folder $folderId');
             return result;
@@ -47,6 +48,19 @@ class GoogleDriveService {
             print('Failed to read folder $folderId: $error\nstackTrace: $stackTrace');
             return List.empty();
         }
+    }
+    // Google Sheets mime type
+
+    Future<List<drive.File>> readFolderSheetsOnly(String folderId, {int pageSize = 60}) async {
+        final sheetMime = 'application/vnd.google-apps.spreadsheet';
+        final res = await _driveApi?.files.list(
+            q: "'$folderId' in parents and trashed=false and mimeType='$sheetMime'",
+            $fields: 'files(id,name,mimeType,modifiedTime)',
+            pageSize: 1000,
+            supportsAllDrives: true,
+            includeItemsFromAllDrives: true,
+        );
+        return res?.files ?? <drive.File>[];
     }
 
     Future<String> getFileContent(drive.File file) async {
@@ -85,5 +99,19 @@ class GoogleDriveService {
             eol: '\n',
             shouldParseNumbers: false,
         ).convert(csvContent);
+    }
+
+    Future<String> exportGoogleSheetAsCsv(String fileId) async {
+        final api = _driveApi;
+        if (api == null) throw StateError('Drive API not initialized');
+
+        final drive.Media media = await api.files.export(
+            fileId,
+            'text/csv',
+            downloadOptions: drive.DownloadOptions.fullMedia, // ✅ adds alt=media
+        ) as drive.Media;
+
+        // ✅ Stream -> String (UTF-8 safe)
+        return await media.stream.transform(utf8.decoder).join();
     }
 }

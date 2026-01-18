@@ -35,29 +35,6 @@ extension EListCSVLogModel on List<CSVLogModel> {
   /// Latest log (by genTime). Null if list empty.
   CSVLogModel? latest() => sortedByGenTimeDesc().firstOrNull;
 
-  /// Find the latest message that matches any pattern, return group(1)
-  // String? _extractFromLatestMatching(
-  //     List<RegExp> patterns, {
-  //       int? maxScan, // optional performance cap
-  //     }) {
-  //   final sorted = sortedByGenTimeDesc();
-  //   final limit = maxScan == null ? sorted.length : maxScan.clamp(0, sorted.length);
-  //
-  //   for (int i = 0; i < limit; i++) {
-  //     final msg = sorted[i].message;
-  //     if (msg == null || msg.isEmpty) continue;
-  //
-  //     for (final re in patterns) {
-  //       final m = re.firstMatch(msg);
-  //       if (m != null) {
-  //         final v = m.group(1)?.trim();
-  //         if (v != null && v.isNotEmpty) return v;
-  //       }
-  //     }
-  //   }
-  //   return null;
-  // }
-
   /// Find latest log whose JSON string matches [predicate] and return parsed Map.
   Map<String, dynamic>? _latestJsonWhere(
       bool Function(String rawJson) predicate, {
@@ -132,5 +109,19 @@ extension EListCSVLogModel on List<CSVLogModel> {
     final m = RegExp(r'^\s*\[([0-9]+(?:\.[0-9]+){1,3})\]').firstMatch(msg);
     // print('Getting app version ${m?.group(1)}: $msg');
     return m?.group(1); // 3.6.3
+  }
+
+  Map<String, List<CSVLogModel>> groupLogsByUserId() {
+    final map = <String, List<CSVLogModel>>{};
+    for (final l in this) {
+      final uid = l.userId;
+      if (uid == null || uid.isEmpty) continue;
+      (map[uid] ??= <CSVLogModel>[]).add(l);
+    }
+
+    // Optional: sort logs newest first if you have a parseable createdAt
+    // map.forEach((k, v) => v.sort((a, b) => (b.createdAt ?? '').compareTo(a.createdAt ?? '')));
+
+    return map;
   }
 }

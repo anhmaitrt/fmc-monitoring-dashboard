@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:fmc_monitoring_dashboard/model/log/csv_log_model.dart';
 import 'package:fmc_monitoring_dashboard/model/log/log_file.dart';
@@ -18,6 +19,7 @@ class AnalyticService {
 
     final String DATA_FOLDER = '1yMrZnw2BfQsICvu-Cfb44xsEMU3-w9fQ';
     final String LOGS_FOLDER = '1FgMblKF_Mz6Wg9Zl8xSJfKEpOnzfX-ox';
+    final String CONFIGS_FOLDER = '13AEi0JRNteZIhkF7q8T9_YN07UTp_jhP';
 
     // ⚠️ tune this: 3–10 is typical for web
     final _concurrency = 10;
@@ -25,9 +27,10 @@ class AnalyticService {
     final _progressController = StreamController<LoadingProgress>.broadcast();
     Stream<LoadingProgress> get progressStream => _progressController.stream;
 
-    List<UserModel> userList = List.empty(growable: true);
-    List<List<UserCGMDataRow>> dataFiles = List.empty(growable: true);
-    List<CSVLogModel> logList = List.empty(growable: true);
+    final userList = List<UserModel>.empty(growable: true);
+    final dataFiles = List<List<UserCGMDataRow>>.empty(growable: true);
+    final logList = List<CSVLogModel>.empty(growable: true);
+    final vipPhoneList = List<String>.empty(growable: true);
 
     void _emit(LoadingProgress p) {
         if (!_progressController.isClosed) _progressController.add(p);
@@ -36,12 +39,13 @@ class AnalyticService {
     Future<void> fetchDB() async {
         try {
             await Future.wait([
-                _fetchLogs(),          // fills logList
-                _fetchUsersCGMData(),  // fills dataFiles
+                _fetchLogs(),
+                _fetchUsersCGMData(),
+                _fetchConfigs(),
             ]);
 
-            _buildUserList(); // ✅ merge into userList
-            analyzeSyncRecovery(window: const Duration(minutes: 10));
+            _buildUserList();
+            analyzeSyncRecovery(window: const Duration(minutes: 1440));
         } catch (e, stackTrace) {
             print("Error getting files: $e\n$stackTrace");
             rethrow;
@@ -182,14 +186,86 @@ class AnalyticService {
         }
     }
 
+    Future<void> _fetchConfigs() async {
+        try {
+            final files = await GoogleDriveService.instance.readFolderSheetsOnly(CONFIGS_FOLDER);
+
+            if (files.isEmpty) return;
+
+            print('Detect ${files.length} configs file');
+            // Example outputs (store somewhere in your service)
+            final configMap = <String, String>{};
+
+            await _runPool(
+                items: files,
+                concurrency: _concurrency,
+                task: (file, index) async {
+                    final fileId = file.id;
+                    if (fileId == null) return;
+
+                    final csvText = await GoogleDriveService.instance.exportGoogleSheetAsCsv(fileId);
+                    final rows = GoogleDriveService.instance.getCsvContent(csvText);
+
+                    if (rows.isEmpty) return;
+
+                    final name = (file.name ?? '').trim();
+
+                    if (name.toLowerCase() == 'vip') {
+                        for (int r = 0; r < rows.length; r++) {
+                            if (rows[r].isEmpty) continue;
+                            final v = rows[r][0].trim();
+                            if (v.isEmpty) continue;
+
+                            // optional: skip header if first cell is something like "user_id"
+                            // if (r == 0 && v.toLowerCase().contains('user')) continue;
+
+                            vipPhoneList.add(v);
+                        }
+                        return;
+                    }
+
+                    // --- Config sheet: treat as key/value in col A/B ---
+                    if (name.toLowerCase() == 'cấu hình' || name.toLowerCase() == 'cau hinh') {
+                        for (int r = 0; r < rows.length; r++) {
+                            final row = rows[r];
+                            if (row.length < 2) continue;
+
+                            final key = row[0].trim();
+                            final value = row[1].trim();
+
+                            if (key.isEmpty) continue;
+
+                            // optional: skip header row
+                            if (r == 0 && key.toLowerCase().contains('key')) continue;
+
+                            configMap[key] = value;
+                        }
+                        print('Done fetching ${configMap.length} config entries');
+                        return;
+                    }
+
+                    // ignore other sheets
+                },
+            );
+
+            // TODO: assign to your real fields
+            // vipList = vipSet.toList();
+            // configs = configMap;
+
+            print('Done fetching ${vipPhoneList.length} VIP items');
+        } catch (error, stackTrace) {
+            print('Failed to fetch configs: $error\n$stackTrace');
+        }
+    }
+
     /// ✅ Build userList by merging:
     /// - CGM data grouped by userId (keeps day alignment)
     /// - Logs grouped by userId
     void _buildUserList() {
         userList.clear();
 
-        final dataByUser = _groupCgmByUserIdKeepDayIndex(dataFiles);
-        final logsByUser = _groupLogsByUserId(logList);
+        final dataByUser = dataFiles.groupCgmByUserIdKeepDayIndex();
+        final logsByUser = logList.groupLogsByUserId();
 
         final allUserIds = <String>{
             ...dataByUser.keys,
@@ -215,6 +291,7 @@ class AnalyticService {
                 appVersion: userLogs?.extractAppVersionLatest(),
                 dataFiles: userDays,
                 logList: userLogs,
+                isVIP: vipPhoneList.firstWhereOrNull((e) => e.contains(userId)) != null
             );
             // if(user.appVersion != null) {
             //     print('user ${user.userId} ${user.fullName} is using version ${user.appVersion}');
@@ -232,59 +309,12 @@ class AnalyticService {
         // print('Built userList: ${userList.length}');
     }
 
-    /// Keep day alignment:
-    /// dataFiles[0] is newest day list, dataFiles[1] is older, ...
-    /// For each userId we keep a list of day lists in that same order.
-    Map<String, List<List<UserCGMDataRow>>> _groupCgmByUserIdKeepDayIndex(
-        List<List<UserCGMDataRow>> days,
-        ) {
-        final dayCount = days.length;
-
-        // userId -> List(dayCount) of nullable lists
-        final tmp = <String, List<List<UserCGMDataRow>?>>{};
-
-        for (int dayIndex = 0; dayIndex < days.length; dayIndex++) {
-            final dayList = days[dayIndex];
-
-            for (final row in dayList) {
-                final uid = row.userId;
-                if (uid == null || uid.isEmpty) continue;
-
-                tmp.putIfAbsent(uid, () => List<List<UserCGMDataRow>?>.filled(dayCount, null));
-
-                final slot = tmp[uid]![dayIndex] ?? <UserCGMDataRow>[];
-                slot.add(row);
-                tmp[uid]![dayIndex] = slot;
-            }
-        }
-
-        // convert to non-null list-of-days per user
-        return tmp.map((uid, daySlots) {
-            final userDays = daySlots.whereType<List<UserCGMDataRow>>().toList();
-            return MapEntry(uid, userDays);
-        });
-    }
-
-    Map<String, List<CSVLogModel>> _groupLogsByUserId(List<CSVLogModel> logs) {
-        final map = <String, List<CSVLogModel>>{};
-        for (final l in logs) {
-            final uid = l.userId;
-            if (uid == null || uid.isEmpty) continue;
-            (map[uid] ??= <CSVLogModel>[]).add(l);
-        }
-
-        // Optional: sort logs newest first if you have a parseable createdAt
-        // map.forEach((k, v) => v.sort((a, b) => (b.createdAt ?? '').compareTo(a.createdAt ?? '')));
-
-        return map;
-    }
-
     //#region TRACKING ISSUES
     List<ErrorIncident> errorIncidents = [];
     List<UserRecoverySummary> userRecoverySummaries = [];
 
     /// Call this AFTER logList is ready
-    void analyzeSyncRecovery({Duration window = const Duration(minutes: 1440)}) {
+    void analyzeSyncRecovery({Duration window = const Duration(minutes: 10)}) {
         // 1) build incidents (error -> recovered or not)
         errorIncidents = IssueTracker.instance.analyzeRecoveryForAllUsers(
             logList,

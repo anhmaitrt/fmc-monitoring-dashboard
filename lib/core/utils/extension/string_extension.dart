@@ -22,4 +22,21 @@ extension EString on String? {
     if (s.length <= keepLast) return s;
     return '$prefix${s.substring(s.length - keepLast)}';
   }
+
+  String? approxIosFromDarwinKernel() {
+    if(this == null) return null;
+
+    final m = RegExp(r'Darwin Kernel Version (\d+)\.(\d+)\.(\d+)')
+        .firstMatch(this!);
+    if (m == null) return null;
+
+    final darwinMajor = int.parse(m.group(1)!);
+    final darwinMinor = int.parse(m.group(2)!);
+
+    final iosMajor = darwinMajor - 6;
+    if (iosMajor <= 0) return null;
+
+    // Minor often *looks* aligned, but not officially guaranteed
+    return 'iOS $iosMajor.$darwinMinor (approx)';
+  }
 }

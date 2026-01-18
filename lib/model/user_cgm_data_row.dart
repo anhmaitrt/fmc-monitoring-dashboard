@@ -502,4 +502,35 @@ extension EListListCgmDataRow on List<List<UserCGMDataRow>> {
 
     return result;
   }
+
+  /// Keep day alignment:
+  /// dataFiles[0] is newest day list, dataFiles[1] is older, ...
+  /// For each userId we keep a list of day lists in that same order.
+  Map<String, List<List<UserCGMDataRow>>> groupCgmByUserIdKeepDayIndex() {
+    final dayCount = length;
+
+    // userId -> List(dayCount) of nullable lists
+    final tmp = <String, List<List<UserCGMDataRow>?>>{};
+
+    for (int dayIndex = 0; dayIndex < length; dayIndex++) {
+      final dayList = this[dayIndex];
+
+      for (final row in dayList) {
+        final uid = row.userId;
+        if (uid == null || uid.isEmpty) continue;
+
+        tmp.putIfAbsent(uid, () => List<List<UserCGMDataRow>?>.filled(dayCount, null));
+
+        final slot = tmp[uid]![dayIndex] ?? <UserCGMDataRow>[];
+        slot.add(row);
+        tmp[uid]![dayIndex] = slot;
+      }
+    }
+
+    // convert to non-null list-of-days per user
+    return tmp.map((uid, daySlots) {
+      final userDays = daySlots.whereType<List<UserCGMDataRow>>().toList();
+      return MapEntry(uid, userDays);
+    });
+  }
 }

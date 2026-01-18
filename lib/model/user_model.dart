@@ -17,6 +17,7 @@ class UserModel {
     this.appVersion,
     this.dataFiles,
     this.logList,
+    this.isVIP = false,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) => _$UserModelFromJson(json);
@@ -30,6 +31,7 @@ class UserModel {
   final String? platformVersion;
   final String? deviceModel;
   final String? appVersion;
+  final bool isVIP;
   List<List<UserCGMDataRow>>? dataFiles;
   List<CSVLogModel>? logList;
 }

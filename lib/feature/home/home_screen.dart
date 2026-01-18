@@ -15,6 +15,9 @@ import 'package:fmc_monitoring_dashboard/feature/user_details/user_details_scree
 import 'package:fmc_monitoring_dashboard/model/user_cgm_data_row.dart';
 import 'package:fmc_monitoring_dashboard/model/user_model.dart';
 
+import '../../core/components/scaffold_widget.dart';
+import '../../core/components/table/cell_widget.dart';
+import '../../core/utils/extension/date_extension.dart';
 import '../../model/interuption_range.dart';
 
 
@@ -48,121 +51,255 @@ class _HomeScreenState extends State<HomeScreen> {
     final androidUsers = page.splitByPlatform('android');
     final iosUsers = page.splitByPlatform('ios');
 
-    final summariesIssues = [...AnalyticService.instance.userRecoverySummaries]
-      ..sort((a, b) => (a.recoveredRate * 100).compareTo(b.recoveredRate * 100));
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Tổng quan',
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+    return ScaffoldWidget(
+      title: 'Tổng quan',
+      actions: [
+        IconButton(
+          onPressed: _isLoading ? null : _exportCSV,
+          icon: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 1500),
+            transitionBuilder: (child, animation) {
+              return RotationTransition(turns: animation, child: child);
+            },
+            child: Icon(
+              (_isLoading ? Icons.autorenew : Icons.share),
+              color: AppColors.primary,
+              key: ValueKey(_isLoading),
+            ),
+          ),
         ),
-        backgroundColor: AppColors.white,
-        surfaceTintColor: AppColors.white,
-        actions: [
-          IconButton(
-            onPressed: _isLoading ? null : _exportCSV,
-            icon: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 1500),
-              transitionBuilder: (child, animation) {
-                return RotationTransition(turns: animation, child: child);
-              },
-              child: Icon(
-                (_isLoading ? Icons.autorenew : Icons.share),
-                color: AppColors.primary,
-                key: ValueKey(_isLoading),
-              ),
+        IconButton(
+          onPressed: _isLoading ? null : _fetchData,
+          icon: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 1500),
+            transitionBuilder: (child, animation) {
+              return RotationTransition(turns: animation, child: child);
+            },
+            child: Icon(
+              (_isLoading ? Icons.autorenew : Icons.refresh_rounded),
+              color: AppColors.primary,
+              key: ValueKey(_isLoading),
             ),
           ),
-          IconButton(
-            onPressed: _isLoading ? null : _fetchData,
-            icon: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 1500),
-              transitionBuilder: (child, animation) {
-                return RotationTransition(turns: animation, child: child);
-              },
-              child: Icon(
-                (_isLoading ? Icons.autorenew : Icons.refresh_rounded),
-                color: AppColors.primary,
-                key: ValueKey(_isLoading),
-              ),
-            ),
-          ),
-        ],
-      ),
-      backgroundColor: AppColors.backgroundDisable,
+        ),
+      ],
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 24),
         children: [
+          _buildAnalyticsSection(asc),
           _buildChartPagingBar(totalItems: asc.length),
-          const SizedBox(height: 12),
-
-          SizedBox(height: 350, child: _buildTotalCGMChart(page, androidUsers, iosUsers)),
-          Container(height: 350, margin: const EdgeInsets.only(top: 16), child: _buildInterruptionChart(page, androidUsers, iosUsers)),
-          Container(height: 380, margin: const EdgeInsets.only(top: 16), child: _buildInterruptionByPercentageRange(page, androidUsers, iosUsers)),
-
-          const SizedBox(height: 16),
-
-          RichText(
-              text: TextSpan(
-                text: 'Thống kê khách gặp sự cố trong khoảng 09:00 - 15:00 13/01/2026',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
-                children: [
-                  TextSpan(
-                    text: '\n${summariesIssues.length}/${AnalyticService.instance.userList.getAndroidUsers().length} khách gặp sự cố'
-                        '\n${summariesIssues.where((e) => e.recoveredRate * 100 != 0).length} khôi phục lại được',
-                    style: TextStyle(fontWeight: FontWeight.normal),
-                  ),
-                ],
-              ),
+          Container(
+            height: 350,
+            margin: const EdgeInsets.only(top: 12),
+            child: _buildTotalCGMChart(page, androidUsers, iosUsers,),
           ),
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: summariesIssues.length,
-            itemBuilder: (_, i) {
-              final s = summariesIssues[i];
-              final user = AnalyticService.instance.userList.getUserById(s.userId);
-              final rate = (s.recoveredRate * 100).toStringAsFixed(0);
-              final avg = s.avgRecoveryTime == null ? '-' : '${s.avgRecoveryTime!.inMinutes}m';
+          Container(
+            height: 350,
+            margin: const EdgeInsets.only(top: 16),
+            child: _buildInterruptionChart(page, androidUsers, iosUsers,),
+          ),
+          Container(
+            height: 380,
+            margin: const EdgeInsets.only(top: 16),
+            child: _buildInterruptionByPercentageRange(page, androidUsers, iosUsers,),
+          ),
 
-              return ListTile(
-                title: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('${i+1}. ${user?.fullName}', style: TextStyle(fontWeight: FontWeight.bold),),
-                    CopyableWidget(text: s.userId.maskUuid(), copyableContent: s.userId),
-                  ],
+          // const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSection({
+    String? title,
+    String? subTitle,
+    required Widget body,
+  }) {
+    return Card.filled(
+      color: AppColors.white,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          RichText(
+            text: TextSpan(
+              text: title,
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+              children: [
+                TextSpan(
+                  text: subTitle,
+                  style: TextStyle(fontWeight: FontWeight.normal),
                 ),
-                subtitle: Text(
-                  'Recovered: $rate% | Avg recover: $avg | Errors: ${s.totalErrors}'
-                      '\n${user?.platformVersion} | ${user?.deviceModel} | ${user?.appVersion}',
-                ),
-                trailing: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    s.latestError?.errorCode != null
-                        ? Text('code=${s.latestError!.errorCode}') : const SizedBox.shrink(),
-                    TextButton(
-                      onPressed: () => context.navigateTo(
-                        UserDetailsScreen(phoneNumber: user?.phoneNumber ?? ''),
-                      ),
-                      child: const Text('Chi tiết'),
-                    ),
-                  ],
-                ),
-              );
-            },
+              ],
+            ),
+          ),
+          Expanded(
+            child: body,
           ),
         ],
       ),
     );
   }
 
-  // -----------------------
-  // PAGINATION CORE
-  // -----------------------
+  Widget _buildAnalyticsSection(List<List<UserCGMDataRow>> asc) {
+    final vipLatestByUserId = <String, UserCGMDataRow>{};
 
+    for (final day in asc.reversed) {
+      for (final row in day.reversed) {
+        final phone = row.phoneNumber;
+        // final uid = row.userId;
+        //
+        // if (uid == null || uid.isEmpty) continue;
+        if (phone == null || phone.isEmpty) continue;
+        //
+        if (AnalyticService.instance.vipPhoneList.firstWhereOrNull((e) => phone.contains(e)) == null) continue;
+
+        // first time we see this uid while scanning newest->oldest = latest record
+        vipLatestByUserId.putIfAbsent(phone, () => row);
+      }
+    }
+
+    final vipLatestRows = vipLatestByUserId.values.toList()
+      ..sort((a, b) {
+        final da = a.dateTime;
+        final db = b.dateTime;
+        if (da == null || db == null) return 0;
+        return db.compareTo(da); // newest first
+      });
+
+    final summariesIssues = [...AnalyticService.instance.userRecoverySummaries]
+      ..sort((a, b) => (a.recoveredRate * 100).compareTo(b.recoveredRate * 100));
+
+    return Container(
+        height: 350,
+        padding: EdgeInsets.only(bottom: 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: _buildVIPTable(vipLatestRows)),
+            Expanded(
+              child: _buildSection(
+                title: 'Khách gặp sự cố trong khoảng 09:00 - 15:00 13/01/2026',
+                subTitle: '\n${summariesIssues.length}/${AnalyticService
+                    .instance.userList
+                    .getAndroidUsers()
+                    .length} khách gặp sự cố'
+                    '\n${summariesIssues
+                    .where((e) => e.recoveredRate * 100 != 0)
+                    .length} khôi phục lại được',
+                body: Expanded(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    // physics: const NeverScrollableScrollPhysics(),
+                    itemCount: summariesIssues.length,
+                    itemBuilder: (_, i) {
+                      final s = summariesIssues[i];
+                      final user = AnalyticService.instance.userList
+                          .getUserById(s.userId);
+                      final rate = (s.recoveredRate * 100).toStringAsFixed(0);
+                      final avg = s.avgRecoveryTime == null ? '-' : '${s
+                          .avgRecoveryTime!.inMinutes}m';
+
+                      return ListTile(
+                        title: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('${i + 1}. ${user?.fullName}',
+                              style: const TextStyle(fontWeight: FontWeight.bold),),
+                            CopyableWidget(text: s.userId.maskUuid(),
+                                copyableContent: s.userId),
+                          ],
+                        ),
+                        subtitle: CopyableWidget(
+                          text: 'Recovered: $rate% | Avg recover: $avg | Errors: ${s
+                              .totalErrors}'
+                              '\n${user?.platformVersion} | ${user
+                              ?.deviceModel} | ${user?.appVersion}',
+                          copyOnClick: false,
+                        ),
+                        trailing: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            s.latestError?.errorCode != null
+                                ? Text('code=${s.latestError!.errorCode}')
+                                : const SizedBox.shrink(),
+                            TextButton(
+                              onPressed: () =>
+                                  context.navigateTo(
+                                    UserDetailsScreen(
+                                        phoneNumber: user?.phoneNumber ?? ''),
+                                  ),
+                              child: const Text('Chi tiết'),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+  }
+
+  Widget _buildVIPTable(List<UserCGMDataRow> files) {
+    final sorted = [...files]
+      ..sort((a, b) => a.interruptionPercentage < b.interruptionPercentage ? 1 : -1);
+    return _buildSection(
+      title: 'Khách VIP',
+      subTitle: '\n${sorted.length} khách',
+      body: ListView.builder(
+        shrinkWrap: true,
+        // physics: const NeverScrollableScrollPhysics(),
+        itemCount: sorted.length,
+        itemBuilder: (_, i) {
+          // final s = summariesIssues[i];
+          final user = AnalyticService.instance.userList
+              .getUserById(sorted[i].userId ?? '');
+          // final rate = (s.recoveredRate * 100).toStringAsFixed(0);
+          // final avg = s.avgRecoveryTime == null ? '-' : '${s
+          //     .avgRecoveryTime!.inMinutes}m';
+
+          return ListTile(
+            title: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text('${i + 1}. ${user?.fullName}',
+                      style: const TextStyle(fontWeight: FontWeight.bold),),
+                    CopyableWidget(
+                      text: ' ${user?.phoneNumber.maskPhone() ?? ''}',
+                      copyableContent: user?.phoneNumber,),
+                  ],
+                ),
+                CopyableWidget(
+                  text: '${user?.platformVersion/*.approxIosFromDarwinKernel()*/} | ${user?.deviceModel} | ${user?.appVersion}',
+                  copyOnClick: false,
+                )
+              ],
+            ),
+            subtitle: Text(
+              'Ngày ${sorted[i].dateTime.onlyDDMMYYYY()} chậm đồng bộ ${sorted[i].totalGapTimeInHour.toStringAsFixed(1)} giờ',
+            ),
+            trailing: TextButton(
+              onPressed: () =>
+                  context.navigateTo(
+                    UserDetailsScreen(
+                        phoneNumber: user?.phoneNumber ?? ''),
+                  ),
+              child: const Text('Chi tiết'),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  //#region PAGINATION CORE
   int _totalPages(int totalItems) {
     if (totalItems == 0) return 1;
     return (totalItems / _perPage).ceil();
@@ -247,15 +384,12 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+  //#endregion
 
-  // -----------------------
-  // CHART CONTAINERS
-  // -----------------------
-
+  //#region CHART CONTAINERS
   Widget _buildChart({required Widget chart}) {
-    return Card.filled(
-      color: AppColors.white,
-      child: Padding(
+    return _buildSection(
+      body: Padding(
         padding: const EdgeInsets.symmetric(vertical: 16.0),
         child: chart,
       ),
@@ -343,6 +477,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  //TODO: optimize calculation
   Widget _buildInterruptionByPercentageRange(
       List<List<UserCGMDataRow>> data,
       List<List<UserCGMDataRow>> androidUsers,
@@ -431,6 +566,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ],
     );
   }
+  //#endregion
 
   //#region ACTION
   Future<void> _fetchData() async {

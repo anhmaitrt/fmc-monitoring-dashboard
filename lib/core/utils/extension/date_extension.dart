@@ -13,6 +13,8 @@ extension EDateTime on DateTime? {
     final endTime = _formatterHHmmddMMyyyy.parse(end);
     return endTime.difference(this!);
   }
+
+  String onlyDDMMYYYY() => '${this?.day}/${this?.month}/${this?.year}';
 }
 
 extension EStringDateTime on String {
