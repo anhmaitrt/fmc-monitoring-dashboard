@@ -9,7 +9,7 @@ extension EDateTime on DateTime? {
   String get formatddMMyyyy => this == null ? '' : _formatterddMMyyyy.format(this!);
 
   Duration getGap(String end) {
-    if(this == null) return Duration(days: 999);
+    if(this == null) return const Duration(days: 999);
     final endTime = _formatterHHmmddMMyyyy.parse(end);
     return endTime.difference(this!);
   }

@@ -11,7 +11,7 @@ import '../../core/services/toast_service.dart';
 import '../../core/style/app_colors.dart';
 import '../../core/utils/extension/date_extension.dart';
 import '../../core/utils/extension/string_extension.dart';
-import '../../model/interuption_range.dart';
+import '../../model/interruption_range.dart';
 import '../../model/user_cgm_data_row.dart';
 import '../../model/user_model.dart';
 
@@ -438,8 +438,8 @@ class _DataScreenState extends State<DataScreen> {
       color: AppColors.white,
       child: ExpansionTile(
         title: Text(
-          '$day: $filteredCount/$totalCount khách '
-              '($androidFiltered/$androidTotal android, $iosFiltered/$iosTotal ios)',
+          '$day: ${filteredCount == totalCount ? '$filteredCount' : '$filteredCount/$totalCount'} khách '
+              '(${androidFiltered == androidTotal ? '$androidFiltered' : '$androidFiltered/$androidTotal'} android, ${iosFiltered == iosTotal ? '$iosFiltered' : '$iosFiltered/$iosTotal'} ios)',
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         subtitle: Text(
@@ -483,7 +483,7 @@ class _DataScreenState extends State<DataScreen> {
                       text: file.phoneNumber.maskPhone(),
                       copyableContent: file.phoneNumber,
                     ),
-                    CellWidget(text: file.fullName ?? ''),
+                    CellWidget(text: '${file.isVip ? '[VIP] ' : ''}${file.fullName}'),
                     CellWidget(text: file.platform ?? '', enableCopyOnTap: false),
                     CellWidget(
                       text:

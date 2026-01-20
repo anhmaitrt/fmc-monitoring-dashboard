@@ -2,25 +2,22 @@
 import 'dart:core';
 import 'dart:math';
 
-import 'package:fmc_monitoring_dashboard/core/utils/extension/date_extension.dart';
-import 'package:fmc_monitoring_dashboard/core/utils/extension/string_extension.dart';
-import 'package:fmc_monitoring_dashboard/model/export/issue_export_row.dart';
-import 'package:fmc_monitoring_dashboard/model/interuption_range.dart';
-import 'package:fmc_monitoring_dashboard/model/sync_gap.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:json_annotation/json_annotation.dart';
-import 'package:tuple/tuple.dart';
 
-import '../core/services/settings/settings.dart';
+import '../core/utils/extension/date_extension.dart';
 import '../core/utils/extension/list_extension.dart';
+import '../core/utils/extension/string_extension.dart';
+import 'export/issue_export_row.dart';
 import 'export/issue_priority.dart';
+import 'interruption_range.dart';
+import 'sync_gap.dart';
 
 part 'user_cgm_data_row.g.dart';
 
 @JsonSerializable(explicitToJson: true)
 class UserCGMDataRow {
   UserCGMDataRow({
-    this.fileName,
     required this.userId,
     required this.phoneNumber,
     required this.fullName,
@@ -30,6 +27,8 @@ class UserCGMDataRow {
     required this.stoppedAt,
     required this.syncGaps,
     required this.syncGapCount,
+    this.fileName,
+    this.isVip = false,
   });
 
   /// from Drive metadata, not from JSON
@@ -66,6 +65,7 @@ class UserCGMDataRow {
 
   @JsonKey(name: 'sync_gap_count')
   final int? syncGapCount;
+  bool isVip;
 
   factory UserCGMDataRow.fromJson(Map<String, dynamic> json) =>
       _$UserCGMDataRowFromJson(json);

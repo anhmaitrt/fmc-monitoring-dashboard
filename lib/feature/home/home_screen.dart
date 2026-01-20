@@ -18,7 +18,7 @@ import 'package:fmc_monitoring_dashboard/model/user_model.dart';
 import '../../core/components/scaffold_widget.dart';
 import '../../core/components/table/cell_widget.dart';
 import '../../core/utils/extension/date_extension.dart';
-import '../../model/interuption_range.dart';
+import '../../model/interruption_range.dart';
 
 
 class HomeScreen extends StatefulWidget {

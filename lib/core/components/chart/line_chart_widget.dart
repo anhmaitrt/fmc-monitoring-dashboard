@@ -57,7 +57,8 @@ class _LineChartWidgetState extends State<LineChartWidget> {
   void initState() {
     super.initState();
     // default: show all
-    for (int i = 0; i < widget.lineTitleList.length; i++) {
+    final length = widget.lineTitleList.isNullOrEmpty() ? widget.lineDataList.length : widget.lineTitleList.length;
+    for (int i = 0; i < length; i++) {
       _selected.add(i);
     }
   }

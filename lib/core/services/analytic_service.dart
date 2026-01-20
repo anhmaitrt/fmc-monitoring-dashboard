@@ -37,16 +37,16 @@ class AnalyticService {
 
     Future<void> fetchDB() async {
         try {
+            await _fetchConfigs();
             await Future.wait([
                 _fetchLogs(),
                 _fetchUsersCGMData(),
-                _fetchConfigs(),
             ]);
 
             _buildUserList();
             analyzeSyncRecovery(window: const Duration(minutes: 1440));
         } catch (e, stackTrace) {
-            print("Error getting files: $e\n$stackTrace");
+            print('Error getting files: $e\n$stackTrace');
             rethrow;
         }
     }
@@ -75,6 +75,7 @@ class AnalyticService {
                     for (final j in jsonList) {
                         final model = UserCGMDataRow.fromJson(j);
                         model.fileName = file.name;
+                        model.isVip = vipPhoneList.firstWhereOrNull((e) => model.phoneNumber?.contains(e) ?? false) != null;
 
                         if (!(model.phoneNumber?.contains('demo') ?? false)) {
                             models.add(model);
@@ -246,10 +247,6 @@ class AnalyticService {
                     // ignore other sheets
                 },
             );
-
-            // TODO: assign to your real fields
-            // vipList = vipSet.toList();
-            // configs = configMap;
 
             print('Done fetching ${vipPhoneList.length} VIP items');
         } catch (error, stackTrace) {
