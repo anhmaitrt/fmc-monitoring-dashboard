@@ -2,12 +2,11 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:collection/collection.dart';
-import 'package:flutter/foundation.dart';
-import 'package:fmc_monitoring_dashboard/model/log/csv_log_model.dart';
-import 'package:fmc_monitoring_dashboard/model/log/log_file.dart';
-import 'package:fmc_monitoring_dashboard/model/user_model.dart';
 
+import '../../model/log/csv_log_model.dart';
+import '../../model/log/log_file.dart';
 import '../../model/user_cgm_data_row.dart';
+import '../../model/user_model.dart';
 import '../components/toast/model/loading_progress.dart';
 import 'google_drive_service.dart';
 import 'issue_tracker/issue_tracker.dart';
@@ -340,6 +339,7 @@ class AnalyticService {
                 final index = i++;
                 if (index >= items.length) break;
                 await task(items[index], index);
+                await Future<void>.delayed(const Duration(milliseconds: 150));
             }
         });
         await Future.wait(workers);

@@ -1,11 +1,12 @@
+import 'package:collection/collection.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:fmc_monitoring_dashboard/core/utils/extension/string_extension.dart';
 
 import '../../style/app_colors.dart';
 import '../../utils/extension/list_extension.dart';
+import '../../utils/extension/string_extension.dart';
 
-class LineChartWidget extends StatelessWidget {
+class LineChartWidget extends StatefulWidget {
   const LineChartWidget({
     super.key,
     this.chartName = '',
@@ -31,8 +32,8 @@ class LineChartWidget extends StatelessWidget {
   final List<String> lineTitleList;
   final List<String> topTitles;
   final List<String> bottomTitles;
-  final List<List<String>>? tooltipData;
-  final List<List<String>>? subToolTipData;
+  final List<List<String>>? tooltipData;     // tooltipData[lineIndex][x]
+  final List<List<String>>? subToolTipData;  // subToolTipData[lineIndex][x]
   final String? topAxisName;
   final double? maxX;
   final String? leftAxisName;
@@ -42,86 +43,155 @@ class LineChartWidget extends StatelessWidget {
   final List<Color> lineColors;
 
   @override
-  Widget build(BuildContext context) {
-    final lineTitleWidget = <TextSpan>[];
-    if(lineTitleList.length > 1) {
-      for (int i = 1; i < lineTitleList.length; i++) {
-        lineTitleWidget.add(TextSpan(
-            text: ' - ',
-            style: TextStyle(color: Colors.black),
-            children: [
-              TextSpan(
-                text: lineTitleList[i],
-                style: TextStyle(color: lineColors[i]),
-              ),
-            ]
-        ));
-      }
+  State<LineChartWidget> createState() => _LineChartWidgetState();
+}
+
+class _LineChartWidgetState extends State<LineChartWidget> {
+  /// Multi-select: keep which lines are visible
+  final Set<int> _selected = <int>{};
+
+  /// Mapping: visible barIndex -> original lineIndex
+  List<int> get _visibleLineIndexes => _selected.toList()..sort();
+
+  @override
+  void initState() {
+    super.initState();
+    // default: show all
+    for (int i = 0; i < widget.lineTitleList.length; i++) {
+      _selected.add(i);
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final visible = _visibleLineIndexes;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(left: 10, bottom: 16.0),
-          child: Text(chartName, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),),
+          padding: const EdgeInsets.only(left: 10, bottom: 16),
+          child: Text(
+            widget.chartName,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+          ),
         ),
+
         Expanded(
           child: Padding(
-            padding: EdgeInsets.only(left: leftAxisName.isNullOrEmpty ? 0 : 8),
-            child: LineChart(
-                LineChartData(
-                  lineTouchData: lineTouchData1,
-                  gridData: const FlGridData(show: false),
-                  titlesData: FlTitlesData(
-                    rightTitles: buildAxis(
-                      titles: SideTitles(showTitles: false),
+            padding: EdgeInsets.only(left: widget.leftAxisName.isNullOrEmpty ? 0 : 8),
+            child: Stack(
+              children: [
+                LineChart(
+                  LineChartData(
+                    lineTouchData: _lineTouchData,
+                    gridData: const FlGridData(show: false),
+                    titlesData: FlTitlesData(
+                      rightTitles: buildAxis(
+                        titles: const SideTitles(showTitles: false),
+                      ),
+                      topTitles: buildAxis(
+                        axisName: widget.topAxisName,
+                        titles: buildTopTitles(),
+                      ),
+                      leftTitles: buildAxis(
+                        titles: buildLeftTitles(),
+                        axisName: widget.leftAxisName,
+                      ),
+                      bottomTitles: buildAxis(
+                        titles: buildBottomTitles(),
+                        axisName: widget.bottomAxisName,
+                      ),
                     ),
-                    topTitles:buildAxis(
-                      axisName: topAxisName,
-                      titles: buildTopTitles(),
+                    borderData: FlBorderData(
+                      show: true,
+                      border: Border(
+                        bottom: BorderSide(
+                          color: AppColors.primary.withValues(alpha: 0.2),
+                          width: 4,
+                        ),
+                        left: const BorderSide(color: Colors.transparent),
+                        right: const BorderSide(color: Colors.transparent),
+                        top: const BorderSide(color: Colors.transparent),
+                      ),
                     ),
-                    leftTitles: buildAxis(
-                      titles: buildLeftTitles(),
-                      axisName: leftAxisName,
-                    ),
-                    bottomTitles: buildAxis(
-                      titles: buildBottomTitles(),
-                      axisName: bottomAxisName,
+                    lineBarsData: barsData,
+                    minX: 0,
+                    maxX: widget.maxX,
+                    maxY: _maxYForVisibleOrWidget(),
+                    minY: 0,
+                  ),
+                ),
+
+                if (visible.isEmpty)
+                  const Center(
+                    child: Text(
+                      'Chọn ít nhất 1 đường để hiển thị',
+                      style: TextStyle(fontWeight: FontWeight.w700),
                     ),
                   ),
-                  borderData: FlBorderData(
-                    show: true,
-                    border: Border(
-                      bottom: BorderSide(
-                          color: AppColors.primary.withValues(alpha: 0.2), width: 4),
-                      left: const BorderSide(color: Colors.transparent),
-                      right: const BorderSide(color: Colors.transparent),
-                      top: const BorderSide(color: Colors.transparent),
-                    ),
-                  ),
-                  lineBarsData: barsData,
-                  minX: 0,
-                  maxX: maxX,
-                  maxY: maxY,
-                  minY: 0,
-                )
+              ],
             ),
           ),
         ),
-        if(lineTitleList.isNotEmpty)
+
+        if (widget.lineTitleList.isNotEmpty)
           Padding(
-            padding: const EdgeInsets.only(left: 18, top: 16.0),
-            child: RichText(
-              textAlign: TextAlign.start,
-                text: TextSpan(
-                  text: lineTitleList[0],
-                  style: TextStyle(color: lineColors[0]),
-                  children: lineTitleWidget
-                ),
+            padding: const EdgeInsets.only(left: 18, top: 16.0, right: 12, bottom: 8),
+            child: Wrap(
+              spacing: 14,
+              runSpacing: 6,
+              children: widget.lineTitleList.mapIndexed((i, title) {
+                final checked = _selected.contains(i);
+                return InkWell(
+                  onTap: () => _toggleLine(i, !checked),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Checkbox(
+                        value: checked,
+                        onChanged: (v) => _toggleLine(i, v ?? false),
+                      ),
+                      Text(
+                        title,
+                        style: TextStyle(
+                          color: widget.lineColors[i],
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
             ),
-          )
+          ),
       ],
     );
+  }
+
+  void _toggleLine(int index, bool show) {
+    setState(() {
+      if (show) {
+        _selected.add(index);
+      } else {
+        _selected.remove(index);
+      }
+    });
+  }
+
+  double _maxYForVisibleOrWidget() {
+    final visible = _visibleLineIndexes;
+    if (visible.isEmpty) return widget.maxY;
+
+    double maxVal = 0;
+    for (final lineIndex in visible) {
+      final series = widget.lineDataList[lineIndex];
+      for (final v in series) {
+        if (v.isFinite && v > maxVal) maxVal = v;
+      }
+    }
+    // keep at least a tiny >0 range
+    return maxVal > 0 ? maxVal : widget.maxY;
   }
 
   //#region UI
@@ -130,82 +200,108 @@ class LineChartWidget extends StatelessWidget {
     String? axisName,
   }) {
     return AxisTitles(
-      axisNameWidget: axisName != null ? Text(axisName, style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, fontWeight: FontWeight.w900)) : Container(),
-      // axisNameSize: 14,
+      axisNameWidget: axisName != null
+          ? Text(
+        axisName,
+        style: const TextStyle(
+          fontSize: 12,
+          fontStyle: FontStyle.italic,
+          fontWeight: FontWeight.w900,
+        ),
+      )
+          : Container(),
       sideTitles: titles,
     );
   }
 
-  LineTouchData get lineTouchData1 =>
-      LineTouchData(
-        handleBuiltInTouches: true,
-        touchTooltipData: LineTouchTooltipData(
-          getTooltipColor: (touchedSpot) =>
-              Colors.blueGrey.withValues(alpha: 0.4),
-          getTooltipItems: (touchedBarSpots) => _buildToolTip(touchedBarSpots),
-        ),
-        touchCallback: (event, lineTouch) {
-          if(event is FlTapUpEvent) {
-            // lineTouch.lineBarSpots?.
-            print('Touch: ${event.isInterestedForInteractions} ${event}, $lineTouch');
-          }
-          // if (!event.isInterestedForInteractions ||
-          //     lineTouch == null ||
-          //     lineTouch.lineBarSpots == null) {
-          //   setState(() {
-          //     touchedValue = -1;
-          //   });
-          //   return;
-          // }
-          // final value = lineTouch.lineBarSpots![0].x;
-          //
-          // if (value == 0 || value == 6) {
-          //   setState(() {
-          //     touchedValue = -1;
-          //   });
-          //   return;
-          // }
-          //
-          // setState(() {
-          //   touchedValue = value;
-          // });
-        },
-      );
+  LineTouchData get _lineTouchData => LineTouchData(
+    handleBuiltInTouches: true,
+    touchTooltipData: LineTouchTooltipData(
+      getTooltipColor: (touchedSpot) => Colors.blueGrey.withValues(alpha: 0.4),
+      getTooltipItems: _buildToolTip,
+    ),
+  );
 
   List<LineTooltipItem?> _buildToolTip(List<LineBarSpot> touchedBarSpots) {
-    if(tooltipData.isNullOrEmpty() && subToolTipData.isNullOrEmpty() && unit.isEmpty) {
-      return defaultLineTooltipItem(touchedBarSpots);
-    }
+    final visible = _visibleLineIndexes;
 
+    // If nothing special, still map color correctly
     return touchedBarSpots.map((barSpot) {
-      final flSpot = barSpot;
-      // print('Spot tooltip: ${flSpot.x}, ${flSpot.barIndex}');
-      // if (flSpot.x == 0 || flSpot.x == 6) {
-      //   return null;
-      // }
+      final xIndex = barSpot.x.toInt();
+
+      // barSpot.barIndex = index in *visible* list
+      final visibleBarIndex = barSpot.barIndex;
+      if (visibleBarIndex < 0 || visibleBarIndex >= visible.length) {
+        return null;
+      }
+
+      final originalLineIndex = visible[visibleBarIndex];
+
+      final color = widget.lineColors[originalLineIndex];
+
+      final tooltipText = _safeTooltipText(
+        lineIndex: originalLineIndex,
+        xIndex: xIndex,
+        yValue: barSpot.y,
+      );
+
+      final sub = _safeSubTooltipText(
+        lineIndex: originalLineIndex,
+        xIndex: xIndex,
+      );
+
       return LineTooltipItem(
-        tooltipData.isNullOrEmpty() ? '${flSpot.y}$unit${subToolTipData.isNullOrEmpty() ? '' : '\n'}' : '${tooltipData![flSpot.barIndex]}',
-        textAlign: TextAlign.center,
+        tooltipText,
         TextStyle(
-          color: lineColors[flSpot.barIndex],
+          color: color,
           fontWeight: FontWeight.bold,
           fontSize: 14,
         ),
-        children: subToolTipData.isNullOrEmpty() ? null : [
+        children: (sub == null)
+            ? null
+            : [
           TextSpan(
-            text: subToolTipData![flSpot.barIndex][flSpot.x.toInt()],
-            style: TextStyle(
-                color: lineColors[flSpot.barIndex],
-                fontSize: 10
-              // fontWeight: FontWeight.w900,
-            ),
+            text: '\n$sub',
+            style: TextStyle(color: color, fontSize: 10),
           ),
         ],
       );
     }).toList();
   }
 
-  SideTitles buildTopTitles() => topTitles.isEmpty ? SideTitles(showTitles: false) : SideTitles(
+  String _safeTooltipText({
+    required int lineIndex,
+    required int xIndex,
+    required double yValue,
+  }) {
+    // If tooltipData exists, use tooltipData[lineIndex][xIndex]
+    final td = widget.tooltipData;
+    if (td != null &&
+        lineIndex >= 0 &&
+        lineIndex < td.length &&
+        xIndex >= 0 &&
+        xIndex < td[lineIndex].length) {
+      return td[lineIndex][xIndex];
+    }
+
+    // fallback
+    return '${yValue}${widget.unit}';
+  }
+
+  String? _safeSubTooltipText({
+    required int lineIndex,
+    required int xIndex,
+  }) {
+    final sd = widget.subToolTipData;
+    if (sd == null) return null;
+    if (lineIndex < 0 || lineIndex >= sd.length) return null;
+    if (xIndex < 0 || xIndex >= sd[lineIndex].length) return null;
+    return sd[lineIndex][xIndex];
+  }
+
+  SideTitles buildTopTitles() => widget.topTitles.isEmpty
+      ? const SideTitles()
+      : SideTitles(
     showTitles: true,
     reservedSize: 22,
     interval: 1,
@@ -214,17 +310,15 @@ class LineChartWidget extends StatelessWidget {
 
   Widget buildTopTitleWidgets(double value, TitleMeta meta) {
     final i = value.toInt();
-
-    if (i < 0 || i >= topTitles.length) return const SizedBox.shrink();
-
-    // final showEvery = (xTitle.length <= 7) ? 1 : (xTitle.length <= 14) ? 2 : 3;
-    // if (i % showEvery != 0 && i != xTitle.length - 1) return const SizedBox.shrink();
+    if (i < 0 || i >= widget.topTitles.length) return const SizedBox.shrink();
 
     return SideTitleWidget(
       meta: meta,
       space: 8,
-      child: Text(topTitles[i],
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+      child: Text(
+        widget.topTitles[i],
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+      ),
     );
   }
 
@@ -237,86 +331,74 @@ class LineChartWidget extends StatelessWidget {
 
   Widget bottomTitleWidgets(double value, TitleMeta meta) {
     final i = value.toInt();
-
-    if (i < 0 || i >= bottomTitles.length) return const SizedBox.shrink();
-
-    // final showEvery = (xTitle.length <= 7) ? 1 : (xTitle.length <= 14) ? 2 : 3;
-    // if (i % showEvery != 0 && i != xTitle.length - 1) return const SizedBox.shrink();
+    if (i < 0 || i >= widget.bottomTitles.length) return const SizedBox.shrink();
 
     return SideTitleWidget(
       meta: meta,
       space: 8,
-      child: Text(bottomTitles[i],
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+      child: Text(
+        widget.bottomTitles[i],
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+      ),
     );
   }
 
   SideTitles buildLeftTitles() {
     return SideTitles(
-    getTitlesWidget: buildHorizontalWidgets,
-    showTitles: true,
-    interval: (maxY/8).ceilToDouble() < 7 ? (maxY/8).ceilToDouble() : 10,
-    reservedSize: 35,
-  );
+      getTitlesWidget: buildHorizontalWidgets,
+      showTitles: true,
+      interval: (widget.maxY / 8).ceilToDouble() < 7
+          ? (widget.maxY / 8).ceilToDouble()
+          : 10,
+      reservedSize: 35,
+    );
   }
 
   Widget buildHorizontalWidgets(double value, TitleMeta meta) {
-    const style = TextStyle(
-      fontWeight: FontWeight.bold,
-      fontSize: 12,
-    );
-
-    String text = value.toString();
-
+    const style = TextStyle(fontWeight: FontWeight.bold, fontSize: 12);
     return SideTitleWidget(
       meta: meta,
-      child: Text(
-        text,
-        style: style,
-        textAlign: TextAlign.center,
-      ),
+      child: Text(value.toString(), style: style, textAlign: TextAlign.center),
     );
   }
 
   List<LineChartBarData> get barsData {
-    List<LineChartBarData> lineBarDataList = <LineChartBarData>[];
-    for(int i = 0; i < lineDataList.length; i++) {
-      final spotData = <FlSpot>[];
-      for(int j = 0; j < lineDataList[i].length; j++) {
-        spotData.add(FlSpot(j.toDouble(), lineDataList[i][j]));
+    final visible = _visibleLineIndexes;
+    if (visible.isEmpty) return [];
+
+    final lineBarDataList = <LineChartBarData>[];
+
+    for (final originalLineIndex in visible) {
+      final series = widget.lineDataList[originalLineIndex];
+
+      final spots = <FlSpot>[];
+      for (int j = 0; j < series.length; j++) {
+        spots.add(FlSpot(j.toDouble(), series[j]));
       }
-      lineBarDataList.add(_buildChartBar(spotList: spotData, color: lineColors![i]));
+
+      lineBarDataList.add(
+        _buildChartBar(
+          spotList: spots,
+          color: widget.lineColors[originalLineIndex],
+        ),
+      );
     }
+
     return lineBarDataList;
   }
 
   LineChartBarData _buildChartBar({
     required List<FlSpot> spotList,
     required Color color,
-  }) => LineChartBarData(
-    isCurved: true,
-    color: color,
-    barWidth: 4,
-    isStrokeCapRound: true,
-    dotData: FlDotData(show: true,/* getDotPainter: (spot, percent, barData, index) {
-      if (index.isEven) {
-        return FlDotCirclePainter(
-          radius: 8,
-          color: Colors.white,
-          strokeWidth: 5,
-          strokeColor: lineColors[0],
-        );
-      } else {
-        return FlDotSquarePainter(
-          size: 16,
-          color: Colors.white,
-          strokeWidth: 5,
-          strokeColor: lineColors[1],
-        );
-      }
-    },*/),
-    belowBarData: BarAreaData(show: false),
-    spots: spotList
-  );
-  //#endregion
+  }) =>
+      LineChartBarData(
+        isCurved: true,
+        color: color,
+        barWidth: 4,
+        isStrokeCapRound: true,
+        dotData: FlDotData(show: true),
+        belowBarData: BarAreaData(show: false),
+        spots: spotList,
+      );
+//#endregion
 }
