@@ -231,6 +231,18 @@ extension EListUserCGMDataRow on List<UserCGMDataRow> {
     return where((e) => InterruptionRange.fromPercent(e.interruptionPercentage) == range).toList();
   }
 
+  List<UserCGMDataRow> filterByRanges(Set<InterruptionRange> ranges) {
+    if (ranges.isEmpty) return this;
+
+    return where((row) {
+      for (final r in ranges) {
+        // reuse your existing single-range filter logic
+        if ([row].filterByRange(r).isNotEmpty) return true;
+      }
+      return false;
+    }).toList();
+  }
+
   int countByPlatform(String platform) {
     var count = 0;
     forEach((d) {
@@ -279,11 +291,11 @@ extension EListUserCGMDataRow on List<UserCGMDataRow> {
     });
   }
 
-  String summarizeSyncGaps() {
-    int countAndroid = 0;
+  String summarizeSyncGaps({int? totalUsersAndroid, int? totalUsersIos}) {
+    int countAndroid = totalUsersAndroid ?? 0;
     Map<InterruptionRange, double> androidInterruptionRangeCount = {};
 
-    int countIos = 0;
+    int countIos = totalUsersIos ?? 0;
     Map<InterruptionRange, double> iosInterruptionRangeCount = {};
 
     for (var e in InterruptionRange.values) {
@@ -295,10 +307,14 @@ extension EListUserCGMDataRow on List<UserCGMDataRow> {
     for(int i = 0; i < length; i++) {
       interruptionPercentage = this[i].interruptionPercentage;
       if(this[i].platform == 'android') {
-        countAndroid++;
+        if(totalUsersAndroid == null) {
+          countAndroid++;
+        }
         androidInterruptionRangeCount[InterruptionRange.fromPercent(interruptionPercentage)] = androidInterruptionRangeCount[InterruptionRange.fromPercent(interruptionPercentage)]! + 1;
       } else if(this[i].platform == 'ios') {
-        countIos++;
+        if(totalUsersIos == null) {
+          countIos++;
+        }
         iosInterruptionRangeCount[InterruptionRange.fromPercent(interruptionPercentage)] = iosInterruptionRangeCount[InterruptionRange.fromPercent(interruptionPercentage)]! + 1;
       }
     }
