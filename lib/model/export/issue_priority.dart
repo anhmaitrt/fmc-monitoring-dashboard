@@ -6,10 +6,10 @@ enum IssuePriority {
   critical;
 
   /// Build priority from interruption percentage
-  factory IssuePriority.fromPercent(double percent) {
-    if (percent >= 80) return IssuePriority.critical;
-    if (percent >= 50) return IssuePriority.high;
-    if (percent >= 20) return IssuePriority.medium;
+  factory IssuePriority.fromHour(double hour) {
+    if (hour >= 12) return IssuePriority.critical;
+    if (hour >= 5) return IssuePriority.high;
+    if (hour >= 1) return IssuePriority.medium;
     return IssuePriority.normal;
   }
 }

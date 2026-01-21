@@ -579,11 +579,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _exportCSV() async {
     try {
+      final dateTime = AnalyticService.instance.dailyReportFiles.toDateTimeRangeLabels();
       setState(() => _isLoading = true);
       await FileService.instance.exportCsv(
-        AnalyticService.instance.dailyReportFiles.toCSVData(lastNDays: 1),
-        startTime: DateTime.now().subtract(const Duration(days: 1)),
-        endTime: DateTime.now(),
+        AnalyticService.instance.dailyReportFiles.toCSVData(),
+        dateRange: dateTime.toString(),
+        // startTime: DateTime.now().subtract(const Duration(days: 1)),
+        // endTime: DateTime.now(),
       );
       setState(() {
         _isLoading = false;

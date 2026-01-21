@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:json_annotation/json_annotation.dart';
 
+import '../core/services/analytic_service.dart';
 import '../core/utils/extension/date_extension.dart';
 import '../core/utils/extension/list_extension.dart';
 import '../core/utils/extension/string_extension.dart';
@@ -12,6 +13,7 @@ import 'export/issue_export_row.dart';
 import 'export/issue_priority.dart';
 import 'interruption_range.dart';
 import 'sync_gap.dart';
+import 'user_model.dart';
 
 part 'user_cgm_data_row.g.dart';
 
@@ -376,6 +378,66 @@ extension EListListCgmDataRow on List<List<UserCGMDataRow>> {
     }).toList();
   }
 
+  //#region Parse daily report file name
+  /// filename: hhmmDDMMYY_hhmmDDMMYY(.json)
+  /// output:   hh:mm DD/MM/YY_hh:mm DD/MM/YY
+  ///
+  /// example:  0900130126_1030130126.json
+  ///        -> 09:00 13/01/26_10:30 13/01/26
+  List<String> toDateTimeRangeLabels() {
+    return map((dayList) {
+      final fileName = dayList.firstOrNull?.fileName ?? '';
+      final range = _parseRangeFilename(fileName);
+      if (range == null) return '';
+
+      final start = range.$1;
+      final end = range.$2;
+
+      return '${_fmtDT(start)}_${_fmtDT(end)}';
+    }).toList();
+  }
+
+  // -----------------------
+  // helpers
+  // -----------------------
+
+  (DateTime start, DateTime end)? _parseRangeFilename(String fileName) {
+    final name = fileName.split('/').last.split('.').first;
+    final parts = name.split('_');
+    if (parts.length != 2) return null;
+
+    DateTime? parsePart(String s) {
+      // expected hhmmDDMMYY (10 chars)
+      if (s.length != 10) return null;
+
+      final hh = int.tryParse(s.substring(0, 2));
+      final mm = int.tryParse(s.substring(2, 4));
+      final dd = int.tryParse(s.substring(4, 6));
+      final mo = int.tryParse(s.substring(6, 8));
+      final yy = int.tryParse(s.substring(8, 10));
+      if ([hh, mm, dd, mo, yy].any((e) => e == null)) return null;
+
+      final year = 2000 + yy!;
+      return DateTime(year, mo!, dd!, hh!, mm!);
+    }
+
+    final start = parsePart(parts[0]);
+    final end = parsePart(parts[1]);
+    if (start == null || end == null) return null;
+
+    return (start, end);
+  }
+
+  String _fmtDT(DateTime d) {
+    final hh = d.hour.toString().padLeft(2, '0');
+    final mm = d.minute.toString().padLeft(2, '0');
+    final dd = d.day.toString().padLeft(2, '0');
+    final mo = d.month.toString().padLeft(2, '0');
+    final yy = (d.year % 100).toString().padLeft(2, '0');
+    return '$hh:$mm $dd/$mo/$yy';
+  }
+  //#endregion
+
   DateTime? parseDdMmYyFilename(String fileName) {
     final base = fileName.toLowerCase().endsWith('.json')
         ? fileName.substring(0, fileName.length - 5)
@@ -397,67 +459,56 @@ extension EListListCgmDataRow on List<List<UserCGMDataRow>> {
     return DateTime(year, mm, dd);
   }
 
-  List<IssueExportRow> toCSVData({int lastNDays = 30}) {
+  List<IssueExportRow> toCSVData() {
     final rows = <IssueExportRow>[];
 
-    final allDates = map((d) => d.firstOrNull?.dateTime)
-        .whereType<DateTime>()
-        .toList();
-    if (allDates.isEmpty) return rows;
-
-    final anchor = allDates.reduce((a, b) => a.isAfter(b) ? a : b);
-    final cutoff = anchor.subtract(Duration(days: lastNDays - 1)); // inclusive
-
     groupByUserIdKeepDays().forEach((userId, days) {
-      final recentDays = days.where((dayList) {
-        final dt = dayList.firstOrNull?.dateTime;
-        if (dt == null) return false;
-        return !dt.isBefore(cutoff) && !dt.isAfter(anchor);
-      }).toList();
+      if (days.isEmpty) return;
 
-      if (recentDays.isEmpty) return;
-
-      final allRecords = recentDays.expand((d) => d).toList();
+      final allRecords = days.expand((d) => d).toList();
       if (allRecords.isEmpty) return;
 
-      final percentages = allRecords
-          .map((e) => e.interruptionPercentage)
-          .where((p) => p.isFinite)
-          .toList();
+      // ✅ collect ALL gaps across all picked days
+      final allGaps = allRecords.expand((r) => r.syncGaps).toList();
 
-      final avgPercent = percentages.isEmpty
+      final totalHour = allGaps.isEmpty
           ? 0.0
-          : percentages.reduce((a, b) => a + b) / percentages.length;
+          : allGaps.fold<int>(0, (s, g) => s + g.duration.inMinutes) / 60.0;
 
-      final priority = IssuePriority.fromPercent(avgPercent);
+      final priority = IssuePriority.fromHour(totalHour);
 
-      // latest record in window
+      // latest record (prefer latest by fileName rangeStartDateTime)
       allRecords.sort((a, b) {
-        final da = a.dateTime;
-        final db = b.dateTime;
-        if (da == null || db == null) return 0;
+        final da = a.fileName?.rangeStartDateTime;
+        final db = b.fileName?.rangeStartDateTime;
+        if (da == null && db == null) return 0;
+        if (da == null) return 1;
+        if (db == null) return -1;
         return db.compareTo(da);
       });
       final latest = allRecords.first;
 
-      final issue = 'Chậm ${avgPercent.toStringAsFixed(1)}% trong $lastNDays ngày';
+      final issue =
+          'Chậm tổng ${totalHour.toStringAsFixed(1)} tiếng\n'
+          '${allGaps.summarizeSimple(maxItems: 50)}';
 
       rows.add(IssueExportRow(
         phone: latest.phoneNumber?.maskPhone() ?? '',
         name: latest.fullName ?? '',
         priority: priority,
         issue: issue,
-        avgPercent: avgPercent,
+        totalHourInterruption: totalHour,
+        isVIP: latest.isVip,
+        note: AnalyticService.instance.userList.getUserById(userId)?.vipNote ?? '',
       ));
     });
 
-    // ✅ sort: priority DESC, then avgPercent DESC, then name ASC (optional)
     rows.sort((a, b) {
       final p = b.priority.rank.compareTo(a.priority.rank);
       if (p != 0) return p;
 
-      final avg = b.avgPercent.compareTo(a.avgPercent);
-      if (avg != 0) return avg;
+      final t = b.totalHourInterruption.compareTo(a.totalHourInterruption);
+      if (t != 0) return t;
 
       return a.name.toLowerCase().compareTo(b.name.toLowerCase());
     });
@@ -546,5 +597,48 @@ extension EListListCgmDataRow on List<List<UserCGMDataRow>> {
       final userDays = daySlots.whereType<List<UserCGMDataRow>>().toList();
       return MapEntry(uid, userDays);
     });
+  }
+}
+
+extension ERangeFileName on String {
+  String get _baseName {
+    final lower = toLowerCase();
+    return lower.endsWith('.json') ? substring(0, length - 5) : this;
+  }
+
+  /// Parse `hhmmDDMMYY` -> DateTime(20YY, MM, DD, hh, mm)
+  static DateTime? _parseOne(String part) {
+    final digits = part.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.length != 10) return null;
+
+    final hh = int.tryParse(digits.substring(0, 2));
+    final mm = int.tryParse(digits.substring(2, 4));
+    final dd = int.tryParse(digits.substring(4, 6));
+    final MM = int.tryParse(digits.substring(6, 8));
+    final yy = int.tryParse(digits.substring(8, 10));
+
+    if ([hh, mm, dd, MM, yy].any((e) => e == null)) return null;
+
+    final year = 2000 + yy!;
+
+    // basic validation
+    if (hh! < 0 || hh > 23) return null;
+    if (mm! < 0 || mm > 59) return null;
+    if (MM! < 1 || MM > 12) return null;
+    if (dd! < 1 || dd > 31) return null;
+
+    return DateTime(year, MM, dd, hh, mm);
+  }
+
+  DateTime? get rangeStartDateTime {
+    final parts = _baseName.split('_');
+    if (parts.isEmpty) return null;
+    return _parseOne(parts.first);
+  }
+
+  DateTime? get rangeEndDateTime {
+    final parts = _baseName.split('_');
+    if (parts.length < 2) return null;
+    return _parseOne(parts[1]);
   }
 }

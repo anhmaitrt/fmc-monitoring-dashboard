@@ -7,14 +7,18 @@ class IssueExportRow {
     required this.name,
     required this.priority,
     required this.issue,
-    required this.avgPercent,
+    required this.totalHourInterruption,
+    required this.isVIP,
+    required this.note,
   });
 
   final String phone;
   final String name;
   final IssuePriority priority;
   final String issue;
-  final double avgPercent;
+  final double totalHourInterruption;
+  final bool isVIP;
+  final String? note;
 }
 
 extension EIssueExportRow on IssueExportRow {
@@ -23,6 +27,8 @@ extension EIssueExportRow on IssueExportRow {
       phone,
       name,
       priority.label,
+      if (isVIP) 'VIP' else '',
+      note ?? '',
       issue,
     ];
   }

@@ -16,7 +16,7 @@ class AnalyticService {
     static AnalyticService instance = AnalyticService._();
 
     final String DATA_FOLDER = '1yMrZnw2BfQsICvu-Cfb44xsEMU3-w9fQ';
-    final String DAILY_REPORT_FOLDER = '1yMrZnw2BfQsICvu-Cfb44xsEMU3-w9fQ';
+    final String DAILY_REPORT_FOLDER = '1XhM2MQI1Ezk5ppEMaf1znyXc10mfIrHP';
     final String LOGS_FOLDER = '1FgMblKF_Mz6Wg9Zl8xSJfKEpOnzfX-ox';
     final String CONFIGS_FOLDER = '13AEi0JRNteZIhkF7q8T9_YN07UTp_jhP';
 
@@ -190,7 +190,7 @@ class AnalyticService {
                 return db.compareTo(da);
             });
 
-            print('Fetched ${dailyReportFiles.length} files for daily report');
+            print('Fetched ${dailyReportFiles.firstOrNull?.length} files for daily report');
         } catch (e, st) {
             print('Failed to fetch daily report: $e\n$st');
         } finally {
