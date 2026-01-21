@@ -4,11 +4,10 @@ part 'log_file.g.dart';
 
 @JsonSerializable(explicitToJson: true)
 class LogFile {
-  final List<LogEntry> logs;
-
   LogFile({required this.logs});
 
   factory LogFile.fromJson(Map<String, dynamic> json) => _$LogFileFromJson(json);
+  final List<LogEntry> logs;
   Map<String, dynamic> toJson() => _$LogFileToJson(this);
 
   @override
@@ -19,22 +18,22 @@ class LogFile {
 
 @JsonSerializable()
 class LogEntry {
-  /// raw value from JSON (seconds or milliseconds)
-  @JsonKey(name: 'genTime')
-  final int genTime;
-
-  final String message;
 
   LogEntry({
     required this.genTime,
     required this.message,
   });
 
+  factory LogEntry.fromJson(Map<String, dynamic> json) => _$LogEntryFromJson(json);
+  /// raw value from JSON (seconds or milliseconds)
+  @JsonKey(name: 'genTime')
+  final int genTime;
+
+  final String message;
+
   /// Convenient computed DateTime (local)
   @JsonKey(includeFromJson: false, includeToJson: false)
   DateTime get genDateTime => _fromEpoch(genTime);
-
-  factory LogEntry.fromJson(Map<String, dynamic> json) => _$LogEntryFromJson(json);
   Map<String, dynamic> toJson() => _$LogEntryToJson(this);
 
   static DateTime _fromEpoch(int v) {

@@ -14,6 +14,7 @@ import '../../core/utils/extension/string_extension.dart';
 import '../../model/interruption_range.dart';
 import '../../model/user_cgm_data_row.dart';
 import '../../model/user_model.dart';
+import '../user_details/user_info_card.dart';
 
 class DataScreen extends StatefulWidget {
   const DataScreen({super.key});
@@ -452,18 +453,14 @@ class _DataScreenState extends State<DataScreen> {
             columnWidths: const {
               0: FlexColumnWidth(0.8), //Id
               1: FlexColumnWidth(0.4), //SDT
-              2: FlexColumnWidth(0.4), //Name
-              3: FlexColumnWidth(0.4), //Platform
-              4: FlexColumnWidth(0.8), //Session
+              2: FlexColumnWidth(0.8), //Name
+              3: FlexColumnWidth(0.1),
             },
             children: [
               TableRow(
                 decoration: BoxDecoration(color: Colors.grey[300]),
                 children: const [
-                  CellWidget(text: "Id", enableCopyOnTap: false),
-                  CellWidget(text: "Số Điện Thoại", enableCopyOnTap: false),
-                  CellWidget(text: "Họ Tên", enableCopyOnTap: false),
-                  CellWidget(text: "Platform", enableCopyOnTap: false),
+                  CellWidget(text: "Khách", enableCopyOnTap: false),
                   CellWidget(text: 'Ngày Bắt Đầu - Kết Thúc', enableCopyOnTap: false),
                   CellWidget(text: 'Khoảng chậm', enableCopyOnTap: false),
                   CellWidget(text: '', enableCopyOnTap: false),
@@ -476,15 +473,11 @@ class _DataScreenState extends State<DataScreen> {
                       : null,
                   children: [
                     CellWidget(
-                      text: file.userId.maskUuid(),
-                      copyableContent: file.userId ?? '',
+                      content: UserInfoCard(user: AnalyticService.instance
+                          .userList.getUserById(file.userId ?? ''),
+                        showId: true,
+                      ),
                     ),
-                    CellWidget(
-                      text: file.phoneNumber.maskPhone(),
-                      copyableContent: file.phoneNumber,
-                    ),
-                    CellWidget(text: '${file.isVip ? '[VIP] ' : ''}${file.fullName}'),
-                    CellWidget(text: file.platform ?? '', enableCopyOnTap: false),
                     CellWidget(
                       text:
                       'Đã dùng ${file.currentSessionDuration.inDays} ngày\n${file.startedAt} - ${file.stoppedAt}',

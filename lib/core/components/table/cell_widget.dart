@@ -1,28 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:fmc_monitoring_dashboard/core/components/copyable_widget.dart';
 
 import '../../services/toast_service.dart';
+import '../copyable_widget.dart';
 
 class CellWidget extends StatelessWidget {
   const CellWidget({
     super.key,
-    required this.text,
+    this.text,
+    this.content,
     this.copyableContent,
     this.enableCopyOnTap = true
   });
-  final String text;
+  final String? text;
+  final Widget? content;
   final String? copyableContent;
   final bool enableCopyOnTap;
 
   @override
   Widget build(BuildContext context) {
-    return _buildHighlight(context);
+    return content ?? _buildHighlight(context);
   }
 
   Widget _buildHighlight(BuildContext context) {
     if(enableCopyOnTap) {
-      return CopyableWidget(text: text, copyableContent: copyableContent,);
+      return CopyableWidget(text: text ?? '', copyableContent: copyableContent,);
     }
 
     return _buildContent();
@@ -32,7 +34,7 @@ class CellWidget extends StatelessWidget {
   Widget _buildContent() {
     return Padding(
       padding: const EdgeInsets.all(8),
-      child: enableCopyOnTap ? Text(text) : SelectableText(text),
+      child: enableCopyOnTap ? Text(text ?? '') : SelectableText(text ?? ''),
     );
   }
   //#endregion

@@ -77,7 +77,6 @@ class _LineChartWidgetState extends State<LineChartWidget> {
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
           ),
         ),
-
         Expanded(
           child: Padding(
             padding: EdgeInsets.only(left: widget.leftAxisName.isNullOrEmpty ? 0 : 8),

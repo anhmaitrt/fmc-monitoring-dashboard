@@ -17,11 +17,13 @@ class UserModel {
     this.appVersion,
     this.dataFiles,
     this.logList,
+
+    // ✅ VIP stored on user
     this.isVIP = false,
+    this.vipNote,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) => _$UserModelFromJson(json);
-
   Map<String, dynamic> toJson() => _$UserModelToJson(this);
 
   final String? userId;
@@ -31,7 +33,11 @@ class UserModel {
   final String? platformVersion;
   final String? deviceModel;
   final String? appVersion;
+
+  // ✅ moved from AnalyticService -> UserModel
   final bool isVIP;
+  final String? vipNote;
+
   List<List<UserCGMDataRow>>? dataFiles;
   List<CSVLogModel>? logList;
 }
@@ -42,11 +48,7 @@ extension EListUserModel on List<UserModel> {
   }
 
   List<UserModel> getAndroidUsers() {
-    // if(hasDuplicateUserId()) {
-    //   print('User list has duplicates');
-    // }
-    // final result = uniqueByUserId();
-    return /*result.*/where((e) => e.platform == 'android').toList();
+    return where((e) => e.platform == 'android').toList();
   }
 
   bool hasDuplicateUserId() {
@@ -58,8 +60,10 @@ extension EListUserModel on List<UserModel> {
     final seen = <String>{};
     return where((u) {
       final id = u.userId;
-      if (id == null) return true; // or false if you want to drop null ids
-      return seen.add(id); // add() returns false if already exists
+      if (id == null) return true;
+      return seen.add(id);
     }).toList();
   }
+
+  List<UserModel> vipUsers() => where((u) => u.isVIP).toList();
 }

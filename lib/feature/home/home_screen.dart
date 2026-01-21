@@ -2,23 +2,22 @@ import 'dart:math';
 
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
-import 'package:fmc_monitoring_dashboard/core/components/chart/line_chart_widget.dart';
-import 'package:fmc_monitoring_dashboard/core/components/copyable_widget.dart';
-import 'package:fmc_monitoring_dashboard/core/routing/router.dart';
-import 'package:fmc_monitoring_dashboard/core/services/analytic_service.dart';
-import 'package:fmc_monitoring_dashboard/core/services/file/file_service.dart';
-import 'package:fmc_monitoring_dashboard/core/services/toast_service.dart';
-import 'package:fmc_monitoring_dashboard/core/style/app_colors.dart';
-import 'package:fmc_monitoring_dashboard/core/style/app_text_styles.dart';
-import 'package:fmc_monitoring_dashboard/core/utils/extension/string_extension.dart';
-import 'package:fmc_monitoring_dashboard/feature/user_details/user_details_screen.dart';
-import 'package:fmc_monitoring_dashboard/model/user_cgm_data_row.dart';
-import 'package:fmc_monitoring_dashboard/model/user_model.dart';
 
+import '../../core/components/chart/line_chart_widget.dart';
+import '../../core/components/copyable_widget.dart';
 import '../../core/components/scaffold_widget.dart';
-import '../../core/components/table/cell_widget.dart';
+import '../../core/routing/router.dart';
+import '../../core/services/analytic_service.dart';
+import '../../core/services/file/file_service.dart';
+import '../../core/services/toast_service.dart';
+import '../../core/style/app_colors.dart';
 import '../../core/utils/extension/date_extension.dart';
+import '../../core/utils/extension/string_extension.dart';
 import '../../model/interruption_range.dart';
+import '../../model/user_cgm_data_row.dart';
+import '../../model/user_model.dart';
+import '../user_details/user_details_screen.dart';
+import '../user_details/user_info_card.dart';
 
 
 class HomeScreen extends StatefulWidget {
@@ -111,72 +110,50 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildSection({
+    required Widget body,
     String? title,
     String? subTitle,
-    required Widget body,
   }) {
     return Card.filled(
       color: AppColors.white,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          RichText(
-            text: TextSpan(
-              text: title,
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
-              children: [
-                TextSpan(
-                  text: subTitle,
-                  style: TextStyle(fontWeight: FontWeight.normal),
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (title != null)
+              RichText(
+                text: TextSpan(
+                  text: title,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                  children: [
+                    TextSpan(
+                      text: subTitle,
+                      style: const TextStyle(fontWeight: FontWeight.normal),
+                    ),
+                  ],
                 ),
-              ],
+              ),
+            Expanded(
+              child: body,
             ),
-          ),
-          Expanded(
-            child: body,
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildAnalyticsSection(List<List<UserCGMDataRow>> asc) {
-    final vipLatestByUserId = <String, UserCGMDataRow>{};
-
-    for (final day in asc.reversed) {
-      for (final row in day.reversed) {
-        final phone = row.phoneNumber;
-        // final uid = row.userId;
-        //
-        // if (uid == null || uid.isEmpty) continue;
-        if (phone == null || phone.isEmpty) continue;
-        //
-        if (AnalyticService.instance.vipPhoneList.firstWhereOrNull((e) => phone.contains(e)) == null) continue;
-
-        // first time we see this uid while scanning newest->oldest = latest record
-        vipLatestByUserId.putIfAbsent(phone, () => row);
-      }
-    }
-
-    final vipLatestRows = vipLatestByUserId.values.toList()
-      ..sort((a, b) {
-        final da = a.dateTime;
-        final db = b.dateTime;
-        if (da == null || db == null) return 0;
-        return db.compareTo(da); // newest first
-      });
-
     final summariesIssues = [...AnalyticService.instance.userRecoverySummaries]
       ..sort((a, b) => (a.recoveredRate * 100).compareTo(b.recoveredRate * 100));
 
     return Container(
         height: 350,
-        padding: EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.only(bottom: 12),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(child: _buildVIPTable(vipLatestRows)),
+            Expanded(child: _buildVIPTable(asc)),
             Expanded(
               child: _buildSection(
                 title: 'Khách gặp sự cố trong khoảng 09:00 - 15:00 13/01/2026',
@@ -200,40 +177,51 @@ class _HomeScreenState extends State<HomeScreen> {
                       final avg = s.avgRecoveryTime == null ? '-' : '${s
                           .avgRecoveryTime!.inMinutes}m';
 
-                      return ListTile(
-                        title: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('${i + 1}. ${user?.fullName}',
-                              style: const TextStyle(fontWeight: FontWeight.bold),),
-                            CopyableWidget(text: s.userId.maskUuid(),
-                                copyableContent: s.userId),
-                          ],
-                        ),
-                        subtitle: CopyableWidget(
-                          text: 'Recovered: $rate% | Avg recover: $avg | Errors: ${s
-                              .totalErrors}'
-                              '\n${user?.platformVersion} | ${user
-                              ?.deviceModel} | ${user?.appVersion}',
-                          copyOnClick: false,
-                        ),
-                        trailing: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            s.latestError?.errorCode != null
-                                ? Text('code=${s.latestError!.errorCode}')
-                                : const SizedBox.shrink(),
-                            TextButton(
-                              onPressed: () =>
-                                  context.navigateTo(
-                                    UserDetailsScreen(
-                                        phoneNumber: user?.phoneNumber ?? ''),
-                                  ),
-                              child: const Text('Chi tiết'),
+                      return UserInfoCard(
+                          user: user,
+                          customizeFullName: '${i + 1}. ${user?.fullName}',
+                        note: 'Recovered: $rate% | Avg recover: $avg | Errors: ${s.totalErrors}',
+                        actionTitle: 'Chi tiết',
+                        onActionPressed: () => () =>
+                            context.navigateTo(
+                              UserDetailsScreen(
+                                  phoneNumber: user?.phoneNumber ?? ''),
                             ),
-                          ],
-                        ),
                       );
+                      // return ListTile(
+                      //   title: Column(
+                      //     crossAxisAlignment: CrossAxisAlignment.start,
+                      //     children: [
+                      //       Text('${i + 1}. ${user?.fullName}',
+                      //         style: const TextStyle(fontWeight: FontWeight.bold),),
+                      //       CopyableWidget(text: s.userId.maskUuid(),
+                      //           copyableContent: s.userId),
+                      //     ],
+                      //   ),
+                      //   subtitle: CopyableWidget(
+                      //     text: 'Recovered: $rate% | Avg recover: $avg | Errors: ${s
+                      //         .totalErrors}'
+                      //         '\n${user?.platformVersion} | ${user
+                      //         ?.deviceModel} | ${user?.appVersion}',
+                      //     copyOnClick: false,
+                      //   ),
+                      //   trailing: Column(
+                      //     mainAxisSize: MainAxisSize.min,
+                      //     children: [
+                      //       s.latestError?.errorCode != null
+                      //           ? Text('code=${s.latestError!.errorCode}')
+                      //           : const SizedBox.shrink(),
+                      //       TextButton(
+                      //         onPressed: () =>
+                      //             context.navigateTo(
+                      //               UserDetailsScreen(
+                      //                   phoneNumber: user?.phoneNumber ?? ''),
+                      //             ),
+                      //         child: const Text('Chi tiết'),
+                      //       ),
+                      //     ],
+                      //   ),
+                      // );
                     },
                   ),
                 ),
@@ -244,8 +232,30 @@ class _HomeScreenState extends State<HomeScreen> {
       );
   }
 
-  Widget _buildVIPTable(List<UserCGMDataRow> files) {
-    final sorted = [...files]
+  Widget _buildVIPTable(List<List<UserCGMDataRow>> asc) {
+    final files = <String, UserCGMDataRow>{};
+
+    for (final day in asc.reversed) {
+      for (final row in day.reversed) {
+        final phone = row.phoneNumber;
+
+        if (phone.isNullOrEmpty) continue;
+
+        if (AnalyticService.instance.userList.firstWhereOrNull((e) => phone!.contains(e.phoneNumber ?? '') && e.isVIP) == null) continue;
+
+        files.putIfAbsent(phone!, () => row);
+      }
+    }
+
+    final vipLatestRows = files.values.toList()
+      ..sort((a, b) {
+        final da = a.dateTime;
+        final db = b.dateTime;
+        if (da == null || db == null) return 0;
+        return db.compareTo(da); // newest first
+      });
+
+    final sorted = [...vipLatestRows]
       ..sort((a, b) => a.interruptionPercentage < b.interruptionPercentage ? 1 : -1);
     return _buildSection(
       title: 'Khách VIP',
@@ -262,36 +272,15 @@ class _HomeScreenState extends State<HomeScreen> {
           // final avg = s.avgRecoveryTime == null ? '-' : '${s
           //     .avgRecoveryTime!.inMinutes}m';
 
-          return ListTile(
-            title: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Text('${i + 1}. ${user?.fullName}',
-                      style: const TextStyle(fontWeight: FontWeight.bold),),
-                    CopyableWidget(
-                      text: ' ${user?.phoneNumber.maskPhone() ?? ''}',
-                      copyableContent: user?.phoneNumber,),
-                  ],
-                ),
-                CopyableWidget(
-                  text: '${user?.platformVersion/*.approxIosFromDarwinKernel()*/} | ${user?.deviceModel} | ${user?.appVersion}',
-                  copyOnClick: false,
-                )
-              ],
-            ),
-            subtitle: Text(
-              'Ngày ${sorted[i].dateTime.onlyDDMMYYYY()} chậm đồng bộ ${sorted[i].totalGapTimeInHour.toStringAsFixed(1)} giờ',
-            ),
-            trailing: TextButton(
-              onPressed: () =>
-                  context.navigateTo(
-                    UserDetailsScreen(
-                        phoneNumber: user?.phoneNumber ?? ''),
-                  ),
-              child: const Text('Chi tiết'),
+          return UserInfoCard(
+            user: user,
+            enableVIPTag: false,
+            customizeFullName: '${i + 1}. ${user?.fullName}',
+            note: 'Ngày ${sorted[i].dateTime.onlyDDMMYYYY()} chậm đồng bộ ${sorted[i].totalGapTimeInHour.toStringAsFixed(1)} giờ',
+            actionTitle: 'Chi tiết',
+            onActionPressed: () => context.navigateTo(
+              UserDetailsScreen(
+                  phoneNumber: user?.phoneNumber ?? ''),
             ),
           );
         },
@@ -425,7 +414,7 @@ class _HomeScreenState extends State<HomeScreen> {
         lineDataList: [androidUsers.count(), iosUser.count()],
         lineTitleList: const ['android', 'ios'],
         subToolTipData: const [],
-        lineColors: [Colors.lightBlue, Colors.pinkAccent],
+        lineColors: const [Colors.lightBlue, Colors.pinkAccent],
       ),
     );
   }
@@ -592,7 +581,9 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       setState(() => _isLoading = true);
       await FileService.instance.exportCsv(
-        AnalyticService.instance.dataFiles.toCSVData(lastNDays: _perPage)
+        AnalyticService.instance.dailyReportFiles.toCSVData(lastNDays: 1),
+        startTime: DateTime.now().subtract(const Duration(days: 1)),
+        endTime: DateTime.now(),
       );
       setState(() {
         _isLoading = false;

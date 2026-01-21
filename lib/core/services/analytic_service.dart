@@ -13,10 +13,10 @@ import 'issue_tracker/issue_tracker.dart';
 
 class AnalyticService {
     AnalyticService._();
-
     static AnalyticService instance = AnalyticService._();
 
     final String DATA_FOLDER = '1yMrZnw2BfQsICvu-Cfb44xsEMU3-w9fQ';
+    final String DAILY_REPORT_FOLDER = '1yMrZnw2BfQsICvu-Cfb44xsEMU3-w9fQ';
     final String LOGS_FOLDER = '1FgMblKF_Mz6Wg9Zl8xSJfKEpOnzfX-ox';
     final String CONFIGS_FOLDER = '13AEi0JRNteZIhkF7q8T9_YN07UTp_jhP';
 
@@ -28,22 +28,50 @@ class AnalyticService {
 
     final userList = List<UserModel>.empty(growable: true);
     final dataFiles = List<List<UserCGMDataRow>>.empty(growable: true);
+    final dailyReportFiles = List<List<UserCGMDataRow>>.empty(growable: true);
     final logList = List<CSVLogModel>.empty(growable: true);
-    final vipPhoneList = List<String>.empty(growable: true);
+
+    // (optional) other configs, not VIP
+    final configs = <String, String>{};
 
     void _emit(LoadingProgress p) {
         if (!_progressController.isClosed) _progressController.add(p);
     }
 
+    // -----------------------
+    // PHONE NORMALIZE (for VIP matching)
+    // -----------------------
+    String? _normalizePhone(String? input) {
+        if (input == null) return null;
+        var d = input.replaceAll(RegExp(r'[^0-9]'), '');
+        if (d.isEmpty) return null;
+
+        // +84xxxxxxxxx / 84xxxxxxxxx -> 0xxxxxxxxx
+        if (d.startsWith('84') && d.length >= 10) {
+            d = '0${d.substring(2)}';
+        }
+        return d;
+    }
+
+    // -----------------------
+    // FETCH ALL
+    // -----------------------
     Future<void> fetchDB() async {
         try {
-            await _fetchConfigs();
+            // ✅ do configs first and keep VIP map in-memory ONLY during this fetch
+            final vipNoteByPhone = await _fetchConfigsVipNoteByPhone();
+
             await Future.wait([
                 _fetchLogs(),
                 _fetchUsersCGMData(),
+                _fetchDailyReport(),
             ]);
 
-            _buildUserList();
+            _buildUserList(vipNoteByPhone: vipNoteByPhone);
+
+            // optional: mark rows.isVip using built userList (no vip list stored in service)
+            _applyVipFlagToRows();
+
             analyzeSyncRecovery(window: const Duration(minutes: 1440));
         } catch (e, stackTrace) {
             print('Error getting files: $e\n$stackTrace');
@@ -56,13 +84,11 @@ class AnalyticService {
             dataFiles.clear();
 
             final rawFiles = await GoogleDriveService.instance.readFolder(DATA_FOLDER);
-
             final total = rawFiles.length;
             var completed = 0;
 
             _emit(LoadingProgress(isLoading: true, current: 0, total: total));
 
-            // results holder with stable order
             final results = List<List<UserCGMDataRow>?>.filled(total, null);
 
             await _runPool(
@@ -75,7 +101,9 @@ class AnalyticService {
                     for (final j in jsonList) {
                         final model = UserCGMDataRow.fromJson(j);
                         model.fileName = file.name;
-                        model.isVip = vipPhoneList.firstWhereOrNull((e) => model.phoneNumber?.contains(e) ?? false) != null;
+
+                        // ❌ no VIP list here anymore
+                        // model.isVip will be applied after userList is built
 
                         if (!(model.phoneNumber?.contains('demo') ?? false)) {
                             models.add(model);
@@ -112,13 +140,70 @@ class AnalyticService {
         }
     }
 
+    Future<void> _fetchDailyReport() async {
+        try {
+            dailyReportFiles.clear();
+
+            final rawFiles = await GoogleDriveService.instance.readFolder(DAILY_REPORT_FOLDER);
+            final total = rawFiles.length;
+            var completed = 0;
+
+            _emit(LoadingProgress(isLoading: true, current: 0, total: total));
+
+            final results = List<List<UserCGMDataRow>?>.filled(total, null);
+
+            await _runPool(
+                items: rawFiles,
+                concurrency: _concurrency,
+                task: (file, index) async {
+                    final jsonList = await GoogleDriveService.instance.getJsonContent(file);
+
+                    final models = <UserCGMDataRow>[];
+                    for (final j in jsonList) {
+                        final model = UserCGMDataRow.fromJson(j);
+                        model.fileName = file.name;
+
+                        if (!(model.phoneNumber?.contains('demo') ?? false)) {
+                            models.add(model);
+                        }
+                    }
+
+                    results[index] = models;
+
+                    completed++;
+                    _emit(LoadingProgress(
+                        isLoading: true,
+                        current: completed,
+                        total: total,
+                        fileName: file.name,
+                    ));
+                },
+            );
+
+            dailyReportFiles.addAll(results.whereType<List<UserCGMDataRow>>());
+
+            // Sort by day DESC
+            dailyReportFiles.sort((a, b) {
+                final da = a.firstOrNull?.dateTime;
+                final db = b.firstOrNull?.dateTime;
+                if (da == null || db == null) return 0;
+                return db.compareTo(da);
+            });
+
+            print('Fetched ${dailyReportFiles.length} files for daily report');
+        } catch (e, st) {
+            print('Failed to fetch daily report: $e\n$st');
+        } finally {
+            _emit(LoadingProgress.idle);
+        }
+    }
+
     Future<void> _fetchLogs() async {
         try {
             logList.clear();
 
             final files = await GoogleDriveService.instance.readFolder(LOGS_FOLDER);
 
-            // Only csv files
             final csvFiles = files.where((f) => (f.name ?? '').endsWith('.csv')).toList();
             if (csvFiles.isEmpty) return;
 
@@ -160,12 +245,10 @@ class AnalyticService {
                             final json = jsonDecode(messageJsonString);
                             message = LogFile.fromJson(json);
                         } catch (_) {
-                            // bad row, skip
                             continue;
                         }
 
-                        final userId =
-                        (userIdColumnIndex != -1) ? rows[r][userIdColumnIndex] : null;
+                        final userId = (userIdColumnIndex != -1) ? rows[r][userIdColumnIndex] : null;
 
                         fileLogs.add(CSVLogModel(
                             createdAt: (createdAtColumnIndex != -1) ? rows[r][createdAtColumnIndex] : null,
@@ -186,15 +269,18 @@ class AnalyticService {
         }
     }
 
-    Future<void> _fetchConfigs() async {
+    /// ✅ Read configs folder (Google Sheets), and return only VIP lookup map:
+    /// key = normalized phone, value = note (can be '')
+    ///
+    /// No vipPhoneList / vipNote stored on service anymore.
+    Future<Map<String, String>> _fetchConfigsVipNoteByPhone() async {
+        final vipNoteByPhone = <String, String>{};
+
         try {
             final files = await GoogleDriveService.instance.readFolderSheetsOnly(CONFIGS_FOLDER);
+            if (files.isEmpty) return vipNoteByPhone;
 
-            if (files.isEmpty) return;
-
-            print('Detect ${files.length} configs file');
-            // Example outputs (store somewhere in your service)
-            final configMap = <String, String>{};
+            configs.clear();
 
             await _runPool(
                 items: files,
@@ -205,27 +291,39 @@ class AnalyticService {
 
                     final csvText = await GoogleDriveService.instance.exportGoogleSheetAsCsv(fileId);
                     final rows = GoogleDriveService.instance.getCsvContent(csvText);
-
                     if (rows.isEmpty) return;
 
-                    final name = (file.name ?? '').trim();
+                    final name = (file.name ?? '').trim().toLowerCase();
 
-                    if (name.toLowerCase() == 'vip') {
+                    // ---- VIP sheet: col A phone, col B note (optional)
+                    if (name == 'vip') {
                         for (int r = 0; r < rows.length; r++) {
-                            if (rows[r].isEmpty) continue;
-                            final v = rows[r][0].trim();
-                            if (v.isEmpty) continue;
+                            final row = rows[r];
+                            if (row.isEmpty) continue;
 
-                            // optional: skip header if first cell is something like "user_id"
-                            // if (r == 0 && v.toLowerCase().contains('user')) continue;
+                            final phoneRaw = row[0].trim();
+                            if (phoneRaw.isEmpty) continue;
 
-                            vipPhoneList.add(v);
+                            // header skip
+                            final lower = phoneRaw.toLowerCase();
+                            if (r == 0 &&
+                                (lower.contains('phone') ||
+                                    lower.contains('sdt') ||
+                                    lower.contains('số') ||
+                                    lower.contains('so'))) {
+                                continue;
+                            }
+
+                            final note = (row.length > 1) ? row[1].trim() : '';
+                            final key = _normalizePhone(phoneRaw) ?? phoneRaw;
+
+                            vipNoteByPhone[key] = note;
                         }
                         return;
                     }
 
-                    // --- Config sheet: treat as key/value in col A/B ---
-                    if (name.toLowerCase() == 'cấu hình' || name.toLowerCase() == 'cau hinh') {
+                    // ---- Config sheet (optional): key/value col A/B
+                    if (name == 'cấu hình' || name == 'cau hinh') {
                         for (int r = 0; r < rows.length; r++) {
                             final row = rows[r];
                             if (row.length < 2) continue;
@@ -234,34 +332,46 @@ class AnalyticService {
                             final value = row[1].trim();
 
                             if (key.isEmpty) continue;
-
-                            // optional: skip header row
                             if (r == 0 && key.toLowerCase().contains('key')) continue;
 
-                            configMap[key] = value;
+                            configs[key] = value;
                         }
-                        print('Done fetching ${configMap.length} config entries');
                         return;
                     }
-
-                    // ignore other sheets
                 },
             );
 
-            print('Done fetching ${vipPhoneList.length} VIP items');
-        } catch (error, stackTrace) {
-            print('Failed to fetch configs: $error\n$stackTrace');
+            print('Done fetching VIP: ${vipNoteByPhone.length} items');
+        } catch (e, st) {
+            print('Failed to fetch configs: $e\n$st');
         }
+
+        return vipNoteByPhone;
     }
 
-    /// ✅ Build userList by merging:
-    /// - CGM data grouped by userId (keeps day alignment)
-    /// - Logs grouped by userId
-    void _buildUserList() {
+    // -----------------------
+    // BUILD USERS + APPLY VIP
+    // -----------------------
+    void _buildUserList({required Map<String, String> vipNoteByPhone}) {
         userList.clear();
 
-        final dataByUser = dataFiles.groupCgmByUserIdKeepDayIndex();
+        final dataByUser = dataFiles.groupCgmByUserIdKeepDayIndex(); // Map<uid, List<List<Row>>>
         final logsByUser = logList.groupLogsByUserId();
+
+        // ✅ Precompute a fallback platform per userId (scan dataFiles ONCE, not inside loop)
+        final fallbackPlatformByUserId = <String, String>{};
+        for (final day in dataFiles) {
+            for (final row in day) {
+                final uid = row.userId;
+                if (uid == null) continue;
+
+                // prefer first non-null platform we see (can switch to "latest" if you want)
+                final p = row.platform;
+                if (p != null && p.isNotEmpty && !fallbackPlatformByUserId.containsKey(uid)) {
+                    fallbackPlatformByUserId[uid] = p;
+                }
+            }
+        }
 
         final allUserIds = <String>{
             ...dataByUser.keys,
@@ -269,62 +379,90 @@ class AnalyticService {
         };
 
         for (final userId in allUserIds) {
-            final userDays = dataByUser[userId]; // List<List<UserCGMDataRow>>
-            final userLogs = logsByUser[userId]; // List<CSVLogModel>
+            final userDays = dataByUser[userId];
+            final userLogs = logsByUser[userId];
 
-            // pick "latest" CGM record (from most recent day list)
-            final latestData = (userDays == null || userDays.isEmpty)
-                ? null
-                : userDays.firstOrNull?.firstOrNull;
+            final latestData =
+            (userDays == null || userDays.isEmpty) ? null : userDays.firstOrNull?.firstOrNull;
+
+            // ✅ platform fallback
+            final platform = (latestData?.platform != null && latestData!.platform!.isNotEmpty)
+                ? latestData.platform
+                : fallbackPlatformByUserId[userId];
+
+            // ✅ VIP now lives in UserModel
+            final phoneKey = _normalizePhone(latestData?.phoneNumber);
+            final note = (phoneKey == null) ? null : vipNoteByPhone[phoneKey];
+            final isVip = note != null;
 
             final user = UserModel(
                 userId: userId,
                 phoneNumber: latestData?.phoneNumber,
                 fullName: latestData?.fullName,
-                platform: latestData?.platform,
+                platform: platform,
                 platformVersion: userLogs?.extractPlatformVersionLatest(),
                 deviceModel: userLogs?.extractDeviceModelLatest(),
                 appVersion: userLogs?.extractAppVersionLatest(),
                 dataFiles: userDays,
                 logList: userLogs,
-                isVIP: vipPhoneList.firstWhereOrNull((e) => e.contains(userId)) != null
+                isVIP: isVip,
+                vipNote: note,
             );
-            // if(user.appVersion != null) {
-            //     print('user ${user.userId} ${user.fullName} is using version ${user.appVersion}');
-            // }
+
             userList.add(user);
         }
 
-        // Optional: sort userList (example: users with more issues first / or by name)
         userList.sort((a, b) {
             final an = (a.fullName ?? '').toLowerCase();
             final bn = (b.fullName ?? '').toLowerCase();
             return an.compareTo(bn);
         });
-
-        // print('Built userList: ${userList.length}');
     }
 
-    //#region TRACKING ISSUES
+    /// Optional: if your UserCGMDataRow has `isVip` mutable, set it from userList
+    void _applyVipFlagToRows() {
+        final vipByUserId = <String, bool>{
+            for (final u in userList)
+                if (u.userId != null) u.userId!: u.isVIP,
+        };
+
+        for (final day in dataFiles) {
+            for (final row in day) {
+                final uid = row.userId;
+                if (uid == null) continue;
+                row.isVip = vipByUserId[uid] == true;
+            }
+        }
+
+        for (final day in dailyReportFiles) {
+            for (final row in day) {
+                final uid = row.userId;
+                if (uid == null) continue;
+                row.isVip = vipByUserId[uid] == true;
+            }
+        }
+    }
+
+    // -----------------------
+    // ISSUES
+    // -----------------------
     List<ErrorIncident> errorIncidents = [];
     List<UserRecoverySummary> userRecoverySummaries = [];
 
-    /// Call this AFTER logList is ready
     void analyzeSyncRecovery({Duration window = const Duration(minutes: 10)}) {
-        // 1) build incidents (error -> recovered or not)
         errorIncidents = IssueTracker.instance.analyzeRecoveryForAllUsers(
             logList,
             window: window,
         );
 
-        // 2) summarize by user
         userRecoverySummaries = IssueTracker.instance.summarizeRecoveryByUser(errorIncidents);
 
-        print('Analyze done: ${errorIncidents.length} incidents, '
-            '${userRecoverySummaries.length} users');
+        print('Analyze done: ${errorIncidents.length} incidents, ${userRecoverySummaries.length} users');
     }
-    //#endregion
 
+    // -----------------------
+    // POOL
+    // -----------------------
     Future<void> _runPool<T>({
         required List<T> items,
         required int concurrency,

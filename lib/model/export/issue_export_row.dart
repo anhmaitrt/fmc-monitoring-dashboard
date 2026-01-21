@@ -1,13 +1,7 @@
 import 'package:csv/csv.dart';
-import 'package:fmc_monitoring_dashboard/model/export/issue_priority.dart';
+import 'issue_priority.dart';
 
 class IssueExportRow {
-  final String phone;
-  final String name;
-  final IssuePriority priority;
-  final String issue;
-  final double avgPercent;
-
   IssueExportRow({
     required this.phone,
     required this.name,
@@ -16,6 +10,11 @@ class IssueExportRow {
     required this.avgPercent,
   });
 
+  final String phone;
+  final String name;
+  final IssuePriority priority;
+  final String issue;
+  final double avgPercent;
 }
 
 extension EIssueExportRow on IssueExportRow {

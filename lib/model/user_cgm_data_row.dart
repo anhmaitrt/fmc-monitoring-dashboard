@@ -371,7 +371,7 @@ extension EListListCgmDataRow on List<List<UserCGMDataRow>> {
 
   List<String> toDateList() {
     return map((f) {
-      final d = parseDdMmYyFilename(f.firstOrNull?.fileName ?? "")!;
+      final d = parseDdMmYyFilename(f.firstOrNull?.fileName ?? '')!;
       return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}';
     }).toList();
   }
@@ -408,9 +408,7 @@ extension EListListCgmDataRow on List<List<UserCGMDataRow>> {
     final anchor = allDates.reduce((a, b) => a.isAfter(b) ? a : b);
     final cutoff = anchor.subtract(Duration(days: lastNDays - 1)); // inclusive
 
-    final grouped = groupByUserIdKeepDays(); // Map<String, List<List<UserCGMFile>>>
-
-    grouped.forEach((userId, days) {
+    groupByUserIdKeepDays().forEach((userId, days) {
       final recentDays = days.where((dayList) {
         final dt = dayList.firstOrNull?.dateTime;
         if (dt == null) return false;

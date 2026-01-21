@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:fmc_monitoring_dashboard/model/log/log_file.dart';
+import 'log_file.dart';
 
 class CSVLogModel {
   final String? userId;

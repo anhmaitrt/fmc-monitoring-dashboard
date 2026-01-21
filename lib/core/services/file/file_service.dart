@@ -1,27 +1,29 @@
-import 'dart:io';
-
-import 'dart:html' as html;
 import 'dart:convert';
+import 'dart:html' as html;
+
 import 'package:csv/csv.dart';
 import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
 
 import '../../../model/export/issue_export_row.dart';
+import '../../utils/extension/date_extension.dart';
 
 class FileService {
     FileService._();
 
     static FileService instance = FileService._();
 
-
-    Future<void> exportCsv(List<IssueExportRow> rows) async {
+    Future<void> exportCsv(List<IssueExportRow> rows, {DateTime? startTime, DateTime? endTime}) async {
       final csv = buildCsv(rows);
 
       String _two(int v) => v.toString().padLeft(2, '0');
 
       final now = DateTime.now();
-      final fileName =
-          'issues_${now.year}-${_two(now.month)}-${_two(now.day)}_${_two(now.hour)}${_two(now.minute)}${_two(now.second)}.csv';
+      String fileName = '';
+      if(startTime != null && endTime != null) {
+        fileName = 'cham_dong_bo_${startTime.onlyDDMMYYYY}-${endTime.onlyDDMMYYYY()}.csv';
+      } else {
+        fileName = 'issues_${now.year}-${_two(now.month)}-${_two(now.day)}_${_two(now.hour)}${_two(now.minute)}${_two(now.second)}.csv';
+      }
 
       if (kIsWeb) {
         downloadCsvWeb(csv, fileName: fileName);

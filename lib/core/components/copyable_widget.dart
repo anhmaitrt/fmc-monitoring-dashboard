@@ -5,21 +5,23 @@ import '../services/toast_service.dart';
 
 class CopyableWidget extends StatelessWidget {
   const CopyableWidget({
-    super.key,
     required this.text,
+    super.key,
     this.copyableContent,
     this.copyOnClick = true,
+    this.padding,
   });
 
   final String text;
   final bool copyOnClick;
   final String? copyableContent;
+  final EdgeInsets? padding;
 
   @override
   Widget build(BuildContext context) {
     if(!copyOnClick) {
       return Padding(
-        padding: const EdgeInsets.all(8),
+        padding: padding ?? const EdgeInsets.all(8),
         child: SelectableText(text),
       );
     }
@@ -35,7 +37,7 @@ class CopyableWidget extends StatelessWidget {
   }
 
   Widget _buildContent() {
-    return Padding(padding: const EdgeInsets.all(8), child: Text(text));
+    return Padding(padding: padding ?? const EdgeInsets.all(8), child: Text(text));
   }
 
   //#region ACTION
