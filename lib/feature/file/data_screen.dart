@@ -110,7 +110,7 @@ class _DataScreenState extends State<DataScreen> {
       for (final row in day) {
         final phone = row.phoneNumber?.trim().toLowerCase();
         final uid = row.userId?.trim().toLowerCase();
-        if (phone == q || uid == q) return row; // first hit = latest
+        if ((phone?.contains(q) ?? false) || (uid?.contains(q) ?? false)) return row; // first hit = latest
       }
     }
     return null;
