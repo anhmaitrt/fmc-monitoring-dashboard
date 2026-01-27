@@ -20,7 +20,7 @@ class GoogleService {
         clientId: Env.googleClientKey,
       ).then((_) async {
         googleSignIn.authenticationEvents.listen((event) async  {
-          print('Google service, authentication event: $event');
+          // print('Google service, authentication event: $event');
           currentUser = switch (event) {
             GoogleSignInAuthenticationEventSignIn() => event.user,
             _ => null,

@@ -64,7 +64,7 @@ class UserInfoCard extends StatelessWidget {
           const SizedBox(height: 4),
           CopyableWidget(
             text:
-                '${user!.platform} | ${user!.platformVersion /*.approxIosFromDarwinKernel()*/} | ${user?.deviceModel} | ${user?.appVersion}',
+                '${user!.platform ?? '-'} | ${user!.platformVersion /*.approxIosFromDarwinKernel()*/ ?? '-'} | ${user?.deviceModel ?? '-'} | ${user?.appVersion ?? '-'} |',
             copyOnClick: false,
             padding: EdgeInsets.zero,
           ),

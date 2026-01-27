@@ -97,6 +97,7 @@ class GoogleDriveService {
     List<List<dynamic>> getCsvContent(String csvContent) {
         return const CsvToListConverter(
             eol: '\n',
+            // fieldDelimiter: ';',
             shouldParseNumbers: false,
         ).convert(csvContent);
     }

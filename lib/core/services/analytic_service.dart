@@ -18,6 +18,7 @@ class AnalyticService {
     final String DATA_FOLDER = '1yMrZnw2BfQsICvu-Cfb44xsEMU3-w9fQ';
     final String DAILY_REPORT_FOLDER = '1XhM2MQI1Ezk5ppEMaf1znyXc10mfIrHP';
     final String LOGS_FOLDER = '1FgMblKF_Mz6Wg9Zl8xSJfKEpOnzfX-ox';
+    // final String LOGS_FOLDER = '1S8iU2jcafvDI-VHf_Oz7b2ZLyQjfzhjN'; //Test log folder
     final String CONFIGS_FOLDER = '13AEi0JRNteZIhkF7q8T9_YN07UTp_jhP';
 
     // ⚠️ tune this: 3–10 is typical for web
@@ -102,10 +103,7 @@ class AnalyticService {
                         final model = UserCGMDataRow.fromJson(j);
                         model.fileName = file.name;
 
-                        // ❌ no VIP list here anymore
-                        // model.isVip will be applied after userList is built
-
-                        if (!(model.phoneNumber?.contains('demo') ?? false)) {
+                        if (!(model.phoneNumber?.contains('demo') ?? false) && !(model.phoneNumber?.contains('deleted') ?? false)) {
                             models.add(model);
                         }
                     }
@@ -225,26 +223,36 @@ class AnalyticService {
                     int userIdColumnIndex = -1;
                     int messageColumnIndex = -1;
 
+                    print('Fetching ${rows.length} raw logs from ${file.name}...');
                     for (int i = 0; i < rows[0].length; i++) {
                         final col = rows[0][i];
-                        if (col == '@timestamp') createdAtColumnIndex = i;
-                        if (col == 'request_body') messageColumnIndex = i;
-                        if (col == 'user_id') userIdColumnIndex = i;
+                        // print('Col $i: $col, ${col.contains('gen_time')}, ${col.contains('message')}, ${col.contains('user_id')}');
+                        if (col.contains('@timestamp')) createdAtColumnIndex = i;
+                        if (col.contains('request_body')) messageColumnIndex = i;
+                        if (col.contains('user_id')) userIdColumnIndex = i;
+                        // if (col.contains('gen_time')) createdAtColumnIndex = i;
+                        // if (col.contains('message')) messageColumnIndex = i;
+                        // if (col.contains('user_id')) userIdColumnIndex = i;
                     }
 
+                    print('Col index createdAt: $createdAtColumnIndex, userId: $userIdColumnIndex, message: $messageColumnIndex');
                     final fileLogs = <CSVLogModel>[];
 
                     for (int r = 1; r < rows.length; r++) {
                         final messageJsonString =
                         (messageColumnIndex != -1) ? rows[r][messageColumnIndex] : null;
 
+                        // print('Message: $messageJsonString');
                         if (messageJsonString == null || messageJsonString.isEmpty) continue;
 
                         LogFile? message;
                         try {
                             final json = jsonDecode(messageJsonString);
+
+                            // print('Message json: $json');
                             message = LogFile.fromJson(json);
-                        } catch (_) {
+                        } catch (e, stackTrace) {
+                            print('Failed to parse messageJString: $messageJsonString\n--Error: $e\nstackTrace: $stackTrace');
                             continue;
                         }
 
@@ -255,6 +263,7 @@ class AnalyticService {
                             log: message.logs.firstOrNull,
                             userId: userId,
                         ));
+                        // await Future.delayed(const Duration(milliseconds: 50));
                     }
 
                     results[index] = fileLogs;
