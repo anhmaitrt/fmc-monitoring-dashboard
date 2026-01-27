@@ -26,7 +26,20 @@ class UserInfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return user == null ? const Text('Không có thông tin khách') : ListTile(
+    if(user == null) {
+      return const Text('Không có thông tin khách');
+    }
+
+    String? platform = user!.platform;
+    String? platformVersion = user!.platformVersion;
+
+    if(platform == 'ios') {
+      platform = '$platform | ${platformVersion/*.approxIosFromDarwinKernel()*/ ?? '-'}';
+    } else if(platform == 'android' && !platformVersion.isNullOrEmpty) {
+      platform = platformVersion;
+    }
+
+    return ListTile(
       title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -64,7 +77,7 @@ class UserInfoCard extends StatelessWidget {
           const SizedBox(height: 4),
           CopyableWidget(
             text:
-                '${user!.platform ?? '-'} | ${user!.platformVersion /*.approxIosFromDarwinKernel()*/ ?? '-'} | ${user?.deviceModel ?? '-'} | ${user?.appVersion ?? '-'} |',
+                '$platform | ${user?.deviceModel ?? '-'} | ${user?.appVersion ?? '-'} |',
             copyOnClick: false,
             padding: EdgeInsets.zero,
           ),

@@ -156,7 +156,7 @@ class _HomeScreenState extends State<HomeScreen> {
             Expanded(child: _buildVIPTable(asc)),
             Expanded(
               child: _buildSection(
-                title: 'Khách gặp sự cố trong khoảng 09:00 - 15:00 13/01/2026',
+                title: 'Khách gặp sự cố trong khoảng 01:00 - 09:00 27/01/2026',
                 subTitle: '\n${summariesIssues.length}/${AnalyticService
                     .instance.userList
                     .getAndroidUsers()
@@ -180,7 +180,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       return UserInfoCard(
                           user: user,
                           customizeFullName: '${i + 1}. ${user?.fullName}',
-                        note: 'Recovered: $rate% | Avg recover: $avg | Errors: ${s.totalErrors}',
+                        note: 'Tỉ lệ khôi phục: $rate% | T/g khôi phục trung bình: $avg | Số lần: ${s.totalErrors}',
                         actionTitle: 'Chi tiết',
                         onActionPressed: () => () =>
                             context.navigateTo(
