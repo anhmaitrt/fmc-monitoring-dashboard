@@ -103,7 +103,7 @@ class AnalyticService {
                         final model = UserCGMDataRow.fromJson(j);
                         model.fileName = file.name;
 
-                        if (!(model.phoneNumber?.contains('demo') ?? false) && !(model.phoneNumber?.contains('deleted') ?? false)) {
+                        if (!(model.phoneNumber?.contains('demo') ?? false) && !(model.phoneNumber?.contains('deleted') ?? false) && !(model.phoneNumber?.contains('118458') ?? false)) {
                             models.add(model);
                         }
                     }
