@@ -39,7 +39,7 @@ class GoogleDriveService {
         try {
             final result = (await _driveApi!.files.list(
                 q: "'$folderId' in parents and trashed=false", // Query to get files from the folder
-                $fields: "files(id,name)", // Fields to retrieve
+                $fields: 'files(id,name)', // Fields to retrieve
                 pageSize: pageSize
             )).files ?? [];
             print('Read ${result.length} files from folder $folderId');
@@ -52,7 +52,7 @@ class GoogleDriveService {
     // Google Sheets mime type
 
     Future<List<drive.File>> readFolderSheetsOnly(String folderId, {int pageSize = 60}) async {
-        final sheetMime = 'application/vnd.google-apps.spreadsheet';
+        const sheetMime = 'application/vnd.google-apps.spreadsheet';
         final res = await _driveApi?.files.list(
             q: "'$folderId' in parents and trashed=false and mimeType='$sheetMime'",
             $fields: 'files(id,name,mimeType,modifiedTime)',

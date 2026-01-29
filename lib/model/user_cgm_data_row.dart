@@ -6,6 +6,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:json_annotation/json_annotation.dart';
 
 import '../core/services/analytic_service.dart';
+import '../core/utils/enum/file_name_pattern.dart';
 import '../core/utils/extension/date_extension.dart';
 import '../core/utils/extension/list_extension.dart';
 import '../core/utils/extension/string_extension.dart';
@@ -94,35 +95,152 @@ class UserCGMDataRow {
         'syncGapCount: $syncGapCount'
         ')';
 
-  DateTime? get dateTime {
-    if(fileName.isNullOrEmpty) return null;
+  /// Detects filename pattern type
+  /// Pattern 1: 'DDMMYY.json' (e.g., '280126.json')
+  /// Pattern 2: 'hhmmDDMMYY_hhmmDDMMYY.json' (e.g., '0000290126_0900290126.json')
+  FileNamePattern get fileNamePattern {
+    if (fileName.isNullOrEmpty) return FileNamePattern.unknown;
 
     final base = fileName!.toLowerCase().endsWith('.json')
         ? fileName!.substring(0, fileName!.length - 5)
         : fileName!;
 
-    if (base.length != 6) return null; // ddMMyy
+    if (base.length == 6 && !base.contains('_')) {
+      return FileNamePattern.dailyReport; // DDMMYY
+    } else if (base.contains('_') && base.length == 21) {
+      return FileNamePattern.timeRange; // hhmmDDMMYY_hhmmDDMMYY
+    }
 
-    final dd = int.tryParse(base.substring(0, 2));
-    final mm = int.tryParse(base.substring(2, 4));
-    final yy = int.tryParse(base.substring(4, 6));
+    return FileNamePattern.unknown;
+  }
+
+  /// Parses 'hhmmDDMMYY' format to DateTime
+  static DateTime? _parseHhmmDdMmYy(String part) {
+    if (part.length != 10) return null;
+
+    final hh = int.tryParse(part.substring(0, 2));
+    final mm = int.tryParse(part.substring(2, 4));
+    final dd = int.tryParse(part.substring(4, 6));
+    final mo = int.tryParse(part.substring(6, 8));
+    final yy = int.tryParse(part.substring(8, 10));
+
+    if ([hh, mm, dd, mo, yy].any((e) => e == null)) return null;
+
+    final year = (yy! >= 70) ? 1900 + yy : 2000 + yy;
+
+    // Basic validation
+    if (hh! < 0 || hh > 23) return null;
+    if (mm! < 0 || mm > 59) return null;
+    if (mo! < 1 || mo > 12) return null;
+    if (dd! < 1 || dd > 31) return null;
+
+    return DateTime(year, mo, dd, hh, mm);
+  }
+
+  /// Parses 'DDMMYY' format to DateTime (date only, time defaults to 00:00)
+  static DateTime? _parseDdMmYy(String part) {
+    if (part.length != 6) return null;
+
+    final dd = int.tryParse(part.substring(0, 2));
+    final mm = int.tryParse(part.substring(2, 4));
+    final yy = int.tryParse(part.substring(4, 6));
+
     if (dd == null || mm == null || yy == null) return null;
 
-    // choose a century rule (adjust if needed)
     final year = (yy >= 70) ? 1900 + yy : 2000 + yy;
 
-    // basic validation
+    // Basic validation
     if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return null;
 
     return DateTime(year, mm, dd);
   }
 
+  /// Gets the date from filename (works for both patterns)
+  DateTime? get dateTime {
+    if (fileName.isNullOrEmpty) return null;
+
+    final base = fileName!.toLowerCase().endsWith('.json')
+        ? fileName!.substring(0, fileName!.length - 5)
+        : fileName!;
+
+    switch (fileNamePattern) {
+      case FileNamePattern.dailyReport:
+        return _parseDdMmYy(base);
+
+      case FileNamePattern.timeRange:
+        final parts = base.split('_');
+        if (parts.isEmpty) return null;
+        // Return date from the first part (start time)
+        return _parseHhmmDdMmYy(parts.first);
+
+      case FileNamePattern.unknown:
+        return null;
+    }
+  }
+
+  /// Gets the start DateTime from filename
+  /// Pattern 1 (DDMMYY): Returns date at 00:00:00
+  /// Pattern 2 (hhmmDDMMYY_hhmmDDMMYY): Returns parsed start datetime
+  DateTime? get fileStartDateTime {
+    if (fileName.isNullOrEmpty) return null;
+
+    final base = fileName!.toLowerCase().endsWith('.json')
+        ? fileName!.substring(0, fileName!.length - 5)
+        : fileName!;
+
+    switch (fileNamePattern) {
+      case FileNamePattern.dailyReport:
+        return _parseDdMmYy(base);
+
+      case FileNamePattern.timeRange:
+        final parts = base.split('_');
+        if (parts.isEmpty) return null;
+        return _parseHhmmDdMmYy(parts.first);
+
+      case FileNamePattern.unknown:
+        return null;
+    }
+  }
+
+  /// Gets the end DateTime from filename
+  /// Pattern 1 (DDMMYY): Returns date at 23:59:59
+  /// Pattern 2 (hhmmDDMMYY_hhmmDDMMYY): Returns parsed end datetime
+  DateTime? get fileEndDateTime {
+    if (fileName.isNullOrEmpty) return null;
+
+    final base = fileName!.toLowerCase().endsWith('.json')
+        ? fileName!.substring(0, fileName!.length - 5)
+        : fileName!;
+
+    switch (fileNamePattern) {
+      case FileNamePattern.dailyReport:
+        final date = _parseDdMmYy(base);
+        if (date == null) return null;
+        return DateTime(date.year, date.month, date.day, 23, 59, 59);
+
+      case FileNamePattern.timeRange:
+        final parts = base.split('_');
+        if (parts.length < 2) return null;
+        return _parseHhmmDdMmYy(parts[1]);
+
+      case FileNamePattern.unknown:
+        return null;
+    }
+  }
+
   Duration get currentSessionDuration {
-    if(startedAt.isNullOrEmpty) {
-      return Duration(minutes: -1);
+    if (startedAt.isNullOrEmpty) {
+      return const Duration(minutes: -1);
     }
 
-    return startedAt!.getGap(DateTime(dateTime!.year, dateTime!.month, dateTime!.day, 23, 59, 59).formatHHMMDDMMYYYY);
+    // Use fileEndDateTime which handles both patterns
+    final endDateTime = fileEndDateTime;
+    if (endDateTime == null) {
+      return const Duration(minutes: -1);
+    }
+
+    // print('Checking dateTime for file $fileName: $dateTime, endDateTime: $endDateTime');
+    return startedAt!.getGap(endDateTime.formatHHMMDDMMYYYY);
   }
 
   String summarizeSyncGaps() {
@@ -598,6 +716,46 @@ extension EListListCgmDataRow on List<List<UserCGMDataRow>> {
       return MapEntry(uid, userDays);
     });
   }
+
+  /// Filters each day's data by the given set of InterruptionRanges.
+  /// Returns a new list where each inner list only contains rows
+  /// matching one of the specified ranges.
+  List<List<UserCGMDataRow>> filterByRanges(Set<InterruptionRange> ranges) {
+    if (ranges.isEmpty) return this;
+
+    return map((dayList) => dayList.filterByRanges(ranges)).toList();
+  }
+
+  /// Filters each day's data by a single InterruptionRange.
+  List<List<UserCGMDataRow>> filterByRange(InterruptionRange range) {
+    return map((dayList) => dayList.filterByRange(range)).toList();
+  }
+
+  /// Filters to only include VIP users.
+  List<List<UserCGMDataRow>> filterByVip() {
+    return map((dayList) => dayList.where((row) => row.isVip).toList()).toList();
+  }
+
+  /// Filters by platform ('android' or 'ios').
+  List<List<UserCGMDataRow>> filterByPlatform(String platform) {
+    if (platform == 'all') return this;
+    return map((dayList) => dayList.filterByPlatform(platform)).toList();
+  }
+
+  /// Removes empty day lists after filtering.
+  List<List<UserCGMDataRow>> removeEmptyDays() {
+    return where((dayList) => dayList.isNotEmpty).toList();
+  }
+
+/// Chains multiple filters together.
+/// Example:
+/// ```dart
+/// dailyReportFiles
+///   .filterByRanges({InterruptionRange.gte50, InterruptionRange.gte80})
+///   .filterByPlatform('android')
+///   .filterByVip()
+///   .removeEmptyDays()
+/// ```
 }
 
 extension ERangeFileName on String {

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/components/chart/line_chart_widget.dart';
 import '../../core/components/copyable_widget.dart';
+import '../../core/components/export_options_dialog.dart';
 import '../../core/components/scaffold_widget.dart';
 import '../../core/routing/router.dart';
 import '../../core/services/analytic_service.dart';
@@ -54,7 +55,7 @@ class _HomeScreenState extends State<HomeScreen> {
       title: 'Tổng quan',
       actions: [
         IconButton(
-          onPressed: _isLoading ? null : _exportCSV,
+          onPressed: _isLoading ? null : _exportCSVCustom /*_exportCSV*/,
           icon: AnimatedSwitcher(
             duration: const Duration(milliseconds: 1500),
             transitionBuilder: (child, animation) {
@@ -188,40 +189,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                   phoneNumber: user?.phoneNumber ?? ''),
                             ),
                       );
-                      // return ListTile(
-                      //   title: Column(
-                      //     crossAxisAlignment: CrossAxisAlignment.start,
-                      //     children: [
-                      //       Text('${i + 1}. ${user?.fullName}',
-                      //         style: const TextStyle(fontWeight: FontWeight.bold),),
-                      //       CopyableWidget(text: s.userId.maskUuid(),
-                      //           copyableContent: s.userId),
-                      //     ],
-                      //   ),
-                      //   subtitle: CopyableWidget(
-                      //     text: 'Recovered: $rate% | Avg recover: $avg | Errors: ${s
-                      //         .totalErrors}'
-                      //         '\n${user?.platformVersion} | ${user
-                      //         ?.deviceModel} | ${user?.appVersion}',
-                      //     copyOnClick: false,
-                      //   ),
-                      //   trailing: Column(
-                      //     mainAxisSize: MainAxisSize.min,
-                      //     children: [
-                      //       s.latestError?.errorCode != null
-                      //           ? Text('code=${s.latestError!.errorCode}')
-                      //           : const SizedBox.shrink(),
-                      //       TextButton(
-                      //         onPressed: () =>
-                      //             context.navigateTo(
-                      //               UserDetailsScreen(
-                      //                   phoneNumber: user?.phoneNumber ?? ''),
-                      //             ),
-                      //         child: const Text('Chi tiết'),
-                      //       ),
-                      //     ],
-                      //   ),
-                      // );
                     },
                   ),
                 ),
@@ -577,21 +544,218 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  // Future<void> _exportCSV({InterruptionRange? range}) async {
+  //   try {
+  //     final dateTime = (range != null ? AnalyticService.instance.dailyReportFiles.filterByRange(range) : AnalyticService.instance.dailyReportFiles).toDateTimeRangeLabels();
+  //     setState(() => _isLoading = true);
+  //     await FileService.instance.exportCsv(
+  //       AnalyticService.instance.dailyReportFiles.toCSVData(),
+  //       dateRange: dateTime.toString(),
+  //       // startTime: DateTime.now().subtract(const Duration(days: 1)),
+  //       // endTime: DateTime.now(),
+  //     );
+  //     setState(() {
+  //       _isLoading = false;
+  //     });
+  //   } catch (error, stackTrace) {
+  //     debugPrint('Failed to refresh total cgm data: $error\n$stackTrace');
+  //     ToastService.show(
+  //       context: context,
+  //       'Đã có lỗi xảy ra, vui lòng thử lại',
+  //       type: ToastType.error,
+  //     );
+  //     setState(() => _isLoading = false);
+  //   }
+  // }
+
   Future<void> _exportCSV() async {
+    // Show the export options dialog
+    final selectedRanges = await ExportDialogPresets.showInterruptionRangeDialog(
+      context: context,
+      title: 'Xuất dữ liệu CSV',
+      subtitle: 'Chọn các mức độ chậm đồng bộ bạn muốn xuất',
+    );
+
+    // User cancelled the dialog
+    if (selectedRanges == null) return;
+
     try {
-      final dateTime = AnalyticService.instance.dailyReportFiles.toDateTimeRangeLabels();
       setState(() => _isLoading = true);
+
+      // Filter data by selected ranges
+      final filteredData = selectedRanges.isEmpty
+          ? AnalyticService.instance.dailyReportFiles
+          : AnalyticService.instance.dailyReportFiles.filterByRanges(selectedRanges);
+
+      final dateTime = filteredData.toDateTimeRangeLabels();
+
       await FileService.instance.exportCsv(
-        AnalyticService.instance.dailyReportFiles.toCSVData(),
+        filteredData.toCSVData(),
         dateRange: dateTime.toString(),
-        // startTime: DateTime.now().subtract(const Duration(days: 1)),
-        // endTime: DateTime.now(),
       );
-      setState(() {
-        _isLoading = false;
-      });
+
+      setState(() => _isLoading = false);
     } catch (error, stackTrace) {
-      debugPrint('Failed to refresh total cgm data: $error\n$stackTrace');
+      debugPrint('Failed to export CSV: $error\n$stackTrace');
+      ToastService.show(
+        context: context,
+        'Đã có lỗi xảy ra, vui lòng thử lại',
+        type: ToastType.error,
+      );
+      setState(() => _isLoading = false);
+    }
+  }
+
+// ============================================================================
+// OR use the full export dialog with more options:
+// ============================================================================
+
+  /// Full version - InterruptionRange + VIP filter
+  Future<void> _exportCSVFull() async {
+    // Show the full export options dialog
+    final settings = await ExportDialogPresets.showFullExportDialog(
+      context: context,
+      title: 'Xuất dữ liệu CSV',
+    );
+
+    // User cancelled the dialog
+    if (settings == null) return;
+
+    try {
+      setState(() => _isLoading = true);
+
+      // Start with all data
+      var data = AnalyticService.instance.dailyReportFiles;
+
+      // Filter by selected ranges
+      if (settings.ranges.isNotEmpty) {
+        data = data.filterByRanges(settings.ranges);
+      }
+
+      // Filter by VIP if enabled
+      // Note: You may need to add a filterByVip method to your extension
+      // if (settings.vipOnly) {
+      //   data = data.filterByVip();
+      // }
+
+      final dateTime = data.toDateTimeRangeLabels();
+
+      await FileService.instance.exportCsv(
+        data.toCSVData(),
+        dateRange: dateTime.toString(),
+      );
+
+      setState(() => _isLoading = false);
+
+      ToastService.show(
+        context: context,
+        'Xuất dữ liệu thành công',
+        type: ToastType.success,
+      );
+    } catch (error, stackTrace) {
+      debugPrint('Failed to export CSV: $error\n$stackTrace');
+      ToastService.show(
+        context: context,
+        'Đã có lỗi xảy ra, vui lòng thử lại',
+        type: ToastType.error,
+      );
+      setState(() => _isLoading = false);
+    }
+  }
+
+// ============================================================================
+// If you need to use the dialog directly with custom options:
+// ============================================================================
+
+  Future<void> _exportCSVCustom() async {
+    final result = await ExportOptionsDialog.show(
+      context: context,
+      title: 'Tùy chọn xuất dữ liệu',
+      subtitle: 'Cấu hình các tùy chọn xuất',
+      options: [
+        // Multi-select for interruption ranges
+        ExportOption(
+          id: 'ranges',
+          label: 'Mức độ chậm đồng bộ',
+          description: 'Chọn một hoặc nhiều mức độ',
+          type: ExportOptionType.multiSelect,
+          choices: InterruptionRange.values
+              .map((e) => ExportChoice(id: e.name, label: e.label, value: e))
+              .toList(),
+          defaultValues: InterruptionRange.values, // All selected by default
+        ),
+
+        // Single-select for platform
+        const ExportOption(
+          id: 'platform',
+          label: 'Nền tảng',
+          type: ExportOptionType.singleSelect,
+          choices: [
+            ExportChoice(id: 'all', label: 'Tất cả', value: 'all'),
+            ExportChoice(id: 'android', label: 'Android', value: 'android'),
+            ExportChoice(id: 'ios', label: 'iOS', value: 'ios'),
+          ],
+          defaultValue: 'all',
+        ),
+
+        // Toggle for VIP only
+        const ExportOption(
+          id: 'vip_only',
+          label: 'Lọc VIP',
+          type: ExportOptionType.toggle,
+          choices: [
+            ExportChoice(id: 'vip', label: 'Chỉ xuất khách VIP', value: true),
+          ],
+          defaultValue: false,
+        ),
+      ],
+    );
+
+    if (result == null) return; // User cancelled
+
+    try {
+      setState(() => _isLoading = true);
+
+      // Extract values from result
+      final selectedRanges = (result['ranges'] as Set<dynamic>?)?.cast<InterruptionRange>() ?? {};
+      final platform = result['platform'] as String? ?? 'all';
+      final vipOnly = result['vip_only'] as bool? ?? false;
+
+      debugPrint('Selected ranges: $selectedRanges');
+      debugPrint('Platform: $platform');
+      debugPrint('VIP only: $vipOnly');
+
+      // Start with all data
+      var filteredData = AnalyticService.instance.dailyReportFiles;
+
+      // Filter by selected ranges
+      if (selectedRanges.isNotEmpty) {
+        filteredData = filteredData.filterByRanges(selectedRanges);
+      }
+
+      // Filter by platform
+      if (platform != 'all') {
+        filteredData = filteredData.filterByPlatform(platform);
+      }
+
+      // Filter by VIP
+      if (vipOnly) {
+        filteredData = filteredData.filterByVip();
+      }
+
+      // Remove empty days after filtering
+      filteredData = filteredData.removeEmptyDays();
+
+      final dateTime = filteredData.toDateTimeRangeLabels();
+
+      await FileService.instance.exportCsv(
+        filteredData.toCSVData(),
+        dateRange: dateTime.toString(),
+      );
+
+      setState(() => _isLoading = false);
+    } catch (error, stackTrace) {
+      debugPrint('Failed to export CSV: $error\n$stackTrace');
       ToastService.show(
         context: context,
         'Đã có lỗi xảy ra, vui lòng thử lại',

@@ -145,31 +145,23 @@ class _DataScreenState extends State<DataScreen> {
   Widget build(BuildContext context) {
     final paged = _pagedGroupViews;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Chi tiết',
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: AppColors.white,
-        surfaceTintColor: AppColors.white,
-        actions: [
-          IconButton(
-            onPressed: _isLoading ? null : _fetchData,
-            icon: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 1500),
-              transitionBuilder: (child, animation) {
-                return RotationTransition(turns: animation, child: child);
-              },
-              child: Icon(
-                _isLoading ? Icons.autorenew : Icons.refresh_rounded,
-                key: ValueKey(_isLoading),
-              ),
+    return ScaffoldWidget(
+      title: 'Chi tiết',
+      actions: [
+        IconButton(
+          onPressed: _isLoading ? null : _fetchData,
+          icon: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 1500),
+            transitionBuilder: (child, animation) {
+              return RotationTransition(turns: animation, child: child);
+            },
+            child: Icon(
+              _isLoading ? Icons.autorenew : Icons.refresh_rounded,
+              key: ValueKey(_isLoading),
             ),
           ),
-        ],
-      ),
-      backgroundColor: AppColors.backgroundDisable,
+        ),
+      ],
       body: Column(
         children: [
           _buildSearchBar(),
