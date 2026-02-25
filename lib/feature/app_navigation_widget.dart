@@ -8,6 +8,7 @@ import '../core/components/side_bar_widget.dart';
 import '../core/components/toast/loading_widget.dart';
 import '../core/services/analytic_service.dart';
 import 'log/log_screen.dart';
+import 'log_report/import_log_report_screen.dart';
 
 class AppNavigationWidget extends StatefulWidget {
   const AppNavigationWidget({super.key});
@@ -25,6 +26,7 @@ class _AppNavigationWidgetState extends State<AppNavigationWidget> {
     DataScreen(),
     UserDetailsScreen(),
     LogScreen(),
+    ImportLogReportScreen(),
   ];
 
   @override
@@ -59,6 +61,10 @@ class _AppNavigationWidgetState extends State<AppNavigationWidget> {
                   const SidebarXItem(
                     icon: Icons.analytics,
                     label: 'Log kỹ thuật',
+                  ),
+                  const SidebarXItem(
+                    icon: Icons.upload_file,
+                    label: 'Import Log',
                   ),
                   SidebarXItem(
                     icon: Icons.settings,

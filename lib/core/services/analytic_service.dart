@@ -73,7 +73,7 @@ class AnalyticService {
             // optional: mark rows.isVip using built userList (no vip list stored in service)
             _applyVipFlagToRows();
 
-            analyzeSyncRecovery(window: const Duration(minutes: 1440));
+            analyzeSyncRecovery(window: const Duration(minutes: 30));
         } catch (e, stackTrace) {
             print('Error getting files: $e\n$stackTrace');
             rethrow;
