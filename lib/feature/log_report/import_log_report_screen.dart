@@ -11,6 +11,10 @@ import 'package:fmc_monitoring_dashboard/core/utils/log_report_parser.dart';
 import 'package:fmc_monitoring_dashboard/model/log_report/log_report_model.dart';
 import 'package:intl/intl.dart';
 
+import 'components/user_journey_timeline.dart';
+
+enum _ViewMode { statsAndLogs, userJourney }
+
 class ImportLogReportScreen extends StatefulWidget {
   const ImportLogReportScreen({super.key});
 
@@ -29,6 +33,7 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
   String? _loadedFileName;
   bool _isFileLoading = false;
   bool _isTableLoading = false;
+  _ViewMode _viewMode = _ViewMode.statsAndLogs;
 
   // Filters
   final TextEditingController _searchController = TextEditingController();
@@ -184,7 +189,8 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
       // Sync errors filter (GATT errors, status=133, connect errors)
       if (_showSyncErrorsOnly) {
         final msgLower = log.message.toLowerCase();
-        final isSyncError = msgLower.contains('gatt') ||
+        final isSyncError =
+            msgLower.contains('gatt') ||
             msgLower.contains('status=133') ||
             msgLower.contains('status=147') ||
             msgLower.contains('connect error') ||
@@ -195,7 +201,8 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
 
       // Date range filter
       if (log.genTime == null) return false;
-      if (_fromGenDateTime != null && log.genTime!.isBefore(_fromGenDateTime!)) {
+      if (_fromGenDateTime != null &&
+          log.genTime!.isBefore(_fromGenDateTime!)) {
         return false;
       }
       if (_toGenDateTime != null && log.genTime!.isAfter(_toGenDateTime!)) {
@@ -244,8 +251,13 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
 
     DateTime result;
     if (pickedTime != null) {
-      result = DateTime(pickedDate.year, pickedDate.month, pickedDate.day,
-          pickedTime.hour, pickedTime.minute);
+      result = DateTime(
+        pickedDate.year,
+        pickedDate.month,
+        pickedDate.day,
+        pickedTime.hour,
+        pickedTime.minute,
+      );
     } else {
       result = DateTime(pickedDate.year, pickedDate.month, pickedDate.day);
     }
@@ -278,10 +290,21 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
 
     DateTime result;
     if (pickedTime != null) {
-      result = DateTime(pickedDate.year, pickedDate.month, pickedDate.day,
-          pickedTime.hour, pickedTime.minute);
+      result = DateTime(
+        pickedDate.year,
+        pickedDate.month,
+        pickedDate.day,
+        pickedTime.hour,
+        pickedTime.minute,
+      );
     } else {
-      result = DateTime(pickedDate.year, pickedDate.month, pickedDate.day, 23, 59);
+      result = DateTime(
+        pickedDate.year,
+        pickedDate.month,
+        pickedDate.day,
+        23,
+        59,
+      );
     }
 
     setState(() {
@@ -339,7 +362,44 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
                 children: [
                   // Header with file picker
                   _buildHeader(scheme),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
+
+                  // View mode toggle (only when data is loaded)
+                  if (_allLogs.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Row(
+                        children: [
+                          SegmentedButton<_ViewMode>(
+                            segments: const [
+                              ButtonSegment(
+                                value: _ViewMode.statsAndLogs,
+                                icon: Icon(Icons.analytics_outlined, size: 18),
+                                label: Text('Stats & Logs'),
+                              ),
+                              ButtonSegment(
+                                value: _ViewMode.userJourney,
+                                icon: Icon(Icons.route_rounded, size: 18),
+                                label: Text('User Journey'),
+                              ),
+                            ],
+                            selected: {_viewMode},
+                            onSelectionChanged: (val) {
+                              setState(() => _viewMode = val.first);
+                            },
+                            style: const ButtonStyle(
+                              visualDensity: VisualDensity.compact,
+                              textStyle: WidgetStatePropertyAll(
+                                const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
 
                   // Error display
                   if (_error != null)
@@ -355,43 +415,56 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
                           Icon(Icons.error_outline, color: scheme.error),
                           const SizedBox(width: 8),
                           Expanded(
-                            child: Text(_error!, style: TextStyle(color: scheme.error)),
+                            child: Text(
+                              _error!,
+                              style: TextStyle(color: scheme.error),
+                            ),
                           ),
                         ],
                       ),
                     ),
 
-                  // Stats cards (only show when data is loaded)
-                  if (_allLogs.isNotEmpty) ...[
-                    _buildStatsCards(scheme),
-                    const SizedBox(height: 16),
-                    _buildCharts(scheme),
-                    const SizedBox(height: 16),
-                    // Timeline histogram chart (Kibana-style)
-                    _buildTimelineHistogram(scheme),
-                    const SizedBox(height: 16),
-                    // User recovery stats cards
-                    _buildUserRecoverySection(scheme),
-                    const SizedBox(height: 16),
-                    _buildFilters(scheme),
-                    const SizedBox(height: 8),
-                  ],
+                  // ── User Journey View ──
+                  if (_viewMode == _ViewMode.userJourney && _allLogs.isNotEmpty)
+                    SizedBox(
+                      height: MediaQuery.of(context).size.height - 200,
+                      child: UserJourneyTimeline(allLogs: _allLogs),
+                    ),
 
-                  // Log table with constrained height
-                  SizedBox(
-                    height: _allLogs.isEmpty ? 400 : 600,
-                    child: _allLogs.isEmpty
-                        ? _buildEmptyState(scheme)
-                        : _buildLogTable(
-                            theme: theme,
-                            pageLogs: pageLogs,
-                            total: total,
-                            pageCount: pageCount,
-                            currentPage: currentPage,
-                            startIndex: startIndex,
-                            endIndex: endIndex,
-                          ),
-                  ),
+                  // ── Stats & Logs View ──
+                  if (_viewMode == _ViewMode.statsAndLogs) ...[
+                    // Stats cards (only show when data is loaded)
+                    if (_allLogs.isNotEmpty) ...[
+                      _buildStatsCards(scheme),
+                      const SizedBox(height: 16),
+                      _buildCharts(scheme),
+                      const SizedBox(height: 16),
+                      // Timeline histogram chart (Kibana-style)
+                      _buildTimelineHistogram(scheme),
+                      const SizedBox(height: 16),
+                      // User recovery stats cards
+                      _buildUserRecoverySection(scheme),
+                      const SizedBox(height: 16),
+                      _buildFilters(scheme),
+                      const SizedBox(height: 8),
+                    ],
+
+                    // Log table with constrained height
+                    SizedBox(
+                      height: _allLogs.isEmpty ? 400 : 600,
+                      child: _allLogs.isEmpty
+                          ? _buildEmptyState(scheme)
+                          : _buildLogTable(
+                              theme: theme,
+                              pageLogs: pageLogs,
+                              total: total,
+                              pageCount: pageCount,
+                              currentPage: currentPage,
+                              startIndex: startIndex,
+                              endIndex: endIndex,
+                            ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -442,10 +515,9 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
                         'Vui lòng chờ trong giây lát',
                         style: TextStyle(
                           fontSize: 13,
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurface
-                              .withValues(alpha: 0.6),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.6),
                         ),
                       ),
                     ],
@@ -479,9 +551,7 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
                 ],
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: scheme.primary.withValues(alpha: 0.2),
-        ),
+        border: Border.all(color: scheme.primary.withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
@@ -491,10 +561,7 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  scheme.primary,
-                  scheme.primary.withValues(alpha: 0.8),
-                ],
+                colors: [scheme.primary, scheme.primary.withValues(alpha: 0.8)],
               ),
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
@@ -715,10 +782,7 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
                           Colors.blueGrey.shade800.withValues(alpha: 0.6),
                           Colors.blueGrey.shade900.withValues(alpha: 0.4),
                         ]
-                      : [
-                          Colors.white,
-                          Colors.grey.shade50,
-                        ],
+                      : [Colors.white, Colors.grey.shade50],
                 ),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
@@ -772,7 +836,10 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
                                   title: '',
                                   radius: 45,
                                   badgeWidget: _stats.warningCount > 0
-                                      ? _buildBadge(Icons.warning, Colors.orange)
+                                      ? _buildBadge(
+                                          Icons.warning,
+                                          Colors.orange,
+                                        )
                                       : null,
                                   badgePositionPercentageOffset: 1.2,
                                 ),
@@ -836,10 +903,7 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
                           Colors.blueGrey.shade800.withValues(alpha: 0.6),
                           Colors.blueGrey.shade900.withValues(alpha: 0.4),
                         ]
-                      : [
-                          Colors.white,
-                          Colors.grey.shade50,
-                        ],
+                      : [Colors.white, Colors.grey.shade50],
                 ),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
@@ -942,7 +1006,10 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
         (log.genTime!.minute ~/ bucketSize.inMinutes) * bucketSize.inMinutes,
       );
 
-      buckets.putIfAbsent(bucketStart, () => {'info': 0, 'warning': 0, 'error': 0});
+      buckets.putIfAbsent(
+        bucketStart,
+        () => {'info': 0, 'warning': 0, 'error': 0},
+      );
       final levelKey = log.level.name.toLowerCase();
       if (buckets[bucketStart]!.containsKey(levelKey)) {
         buckets[bucketStart]![levelKey] = buckets[bucketStart]![levelKey]! + 1;
@@ -951,18 +1018,22 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
 
     // Convert to list and sort
     final result = buckets.entries
-        .map((e) => {
-              'time': e.key,
-              'info': e.value['info'] ?? 0,
-              'warning': e.value['warning'] ?? 0,
-              'error': e.value['error'] ?? 0,
-              'total': (e.value['info'] ?? 0) +
-                  (e.value['warning'] ?? 0) +
-                  (e.value['error'] ?? 0),
-            })
+        .map(
+          (e) => {
+            'time': e.key,
+            'info': e.value['info'] ?? 0,
+            'warning': e.value['warning'] ?? 0,
+            'error': e.value['error'] ?? 0,
+            'total':
+                (e.value['info'] ?? 0) +
+                (e.value['warning'] ?? 0) +
+                (e.value['error'] ?? 0),
+          },
+        )
         .toList();
-    result.sort((a, b) =>
-        (a['time'] as DateTime).compareTo(b['time'] as DateTime));
+    result.sort(
+      (a, b) => (a['time'] as DateTime).compareTo(b['time'] as DateTime),
+    );
     return result;
   }
 
@@ -994,9 +1065,7 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
               : [Colors.white, Colors.grey.shade50],
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.3),
-        ),
+        border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.3)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
@@ -1128,15 +1197,12 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
                         gradient: LinearGradient(
                           begin: Alignment.bottomCenter,
                           end: Alignment.topCenter,
-                          colors: [
-                            Colors.teal.shade400,
-                            Colors.teal.shade300,
-                          ],
+                          colors: [Colors.teal.shade400, Colors.teal.shade300],
                         ),
                         width: math.max(
                           2,
                           (MediaQuery.of(context).size.width - 200) /
-                              histogramData.length -
+                                  histogramData.length -
                               2,
                         ),
                         borderRadius: const BorderRadius.vertical(
@@ -1217,7 +1283,11 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
                         ),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Icon(Icons.person, color: scheme.onPrimary, size: 24),
+                      child: Icon(
+                        Icons.person,
+                        color: scheme.onPrimary,
+                        size: 24,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -1264,7 +1334,8 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
                         icon: Icons.phone_android,
                         items: [
                           if (deviceModel != null) 'Model: $deviceModel',
-                          if (androidVersion != null) 'Android: $androidVersion',
+                          if (androidVersion != null)
+                            'Android: $androidVersion',
                           if (sdkVersion != null) 'SDK: $sdkVersion',
                           if (appVersion != null) 'App: $appVersion',
                           'Total logs: $totalLogs',
@@ -1311,17 +1382,27 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
                               end: Alignment.bottomRight,
                               colors: isDark
                                   ? [
-                                      Colors.blueGrey.shade800.withValues(alpha: 0.4),
-                                      Colors.blueGrey.shade900.withValues(alpha: 0.3),
+                                      Colors.blueGrey.shade800.withValues(
+                                        alpha: 0.4,
+                                      ),
+                                      Colors.blueGrey.shade900.withValues(
+                                        alpha: 0.3,
+                                      ),
                                     ]
                                   : [Colors.white, Colors.grey.shade50],
                             ),
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: scheme.outlineVariant.withValues(alpha: 0.3),
+                              color: scheme.outlineVariant.withValues(
+                                alpha: 0.3,
+                              ),
                             ),
                           ),
-                          child: _buildErrorTimelineChart(errorsByHour, scheme, isDark),
+                          child: _buildErrorTimelineChart(
+                            errorsByHour,
+                            scheme,
+                            isDark,
+                          ),
                         ),
                       ],
                     ],
@@ -1356,9 +1437,7 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
               : [Colors.white, Colors.grey.shade50],
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.3),
-        ),
+        border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1378,16 +1457,18 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          ...items.map((item) => Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Text(
-                  item,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: scheme.onSurface.withValues(alpha: 0.8),
-                  ),
+          ...items.map(
+            (item) => Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Text(
+                item,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: scheme.onSurface.withValues(alpha: 0.8),
                 ),
-              )),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -1400,8 +1481,10 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
 
     // Helper to check if Error field is NOT null (has error)
     bool hasError(String message) {
-      final match = RegExp(r'Error:\s*(\S+)', caseSensitive: false)
-          .firstMatch(message);
+      final match = RegExp(
+        r'Error:\s*(\S+)',
+        caseSensitive: false,
+      ).firstMatch(message);
       if (match == null) return false;
       final errorValue = match.group(1);
       return errorValue != null &&
@@ -1426,7 +1509,10 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
   }
 
   Widget _buildErrorTimelineChart(
-      Map<String, int> errorsByHour, ColorScheme scheme, bool isDark) {
+    Map<String, int> errorsByHour,
+    ColorScheme scheme,
+    bool isDark,
+  ) {
     if (errorsByHour.isEmpty) {
       return Center(
         child: Text(
@@ -1455,14 +1541,13 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
               BarChartRodData(
                 toY: value.toDouble(),
                 width: 16,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(4),
+                ),
                 gradient: LinearGradient(
                   begin: Alignment.bottomCenter,
                   end: Alignment.topCenter,
-                  colors: [
-                    Colors.red.shade400,
-                    Colors.red.shade600,
-                  ],
+                  colors: [Colors.red.shade400, Colors.red.shade600],
                 ),
               ),
             ],
@@ -1512,8 +1597,12 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
               },
             ),
           ),
-          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          rightTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
         ),
         gridData: FlGridData(
           show: true,
@@ -1563,7 +1652,9 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
           label,
           style: TextStyle(
             fontSize: 11,
-            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.7),
           ),
         ),
       ],
@@ -1571,26 +1662,30 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
   }
 
   /// Compute user recovery summaries from filtered logs
-  /// 
+  ///
   /// HealthCheck log format:
   /// - Progress: SCANNING | CONNECTING | CONNECTED | SYNCING | IDLE | DISCONNECTED
   /// - Error: null (no error) or error text (has error)
-  /// 
+  ///
   /// Recovery = Error log followed by Progress=CONNECTED/SYNCING/IDLE with Error=null
   List<Map<String, dynamic>> _computeUserRecoverySummaries() {
     if (_filteredLogs.isEmpty) return [];
 
     // Helper to parse Progress from HealthCheck message
     String? parseProgress(String message) {
-      final match = RegExp(r'Progress:\s*([A-Z_]+)', caseSensitive: false)
-          .firstMatch(message);
+      final match = RegExp(
+        r'Progress:\s*([A-Z_]+)',
+        caseSensitive: false,
+      ).firstMatch(message);
       return match?.group(1)?.toUpperCase();
     }
 
     // Helper to check if Error field is NOT null (has error)
     bool hasError(String message) {
-      final match = RegExp(r'Error:\s*(\S+)', caseSensitive: false)
-          .firstMatch(message);
+      final match = RegExp(
+        r'Error:\s*(\S+)',
+        caseSensitive: false,
+      ).firstMatch(message);
       if (match == null) return false;
       final errorValue = match.group(1);
       return errorValue != null &&
@@ -1614,14 +1709,20 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
     });
 
     // Find HealthCheck logs only
-    final healthCheckLogs = allLogs.where((l) =>
-        l.message.contains('[HealthCheck]') ||
-        l.message.contains('Progress:')).toList();
+    final healthCheckLogs = allLogs
+        .where(
+          (l) =>
+              l.message.contains('[HealthCheck]') ||
+              l.message.contains('Progress:'),
+        )
+        .toList();
 
     if (healthCheckLogs.isEmpty) return [];
 
     // Find error logs (Error field is not null)
-    final errorLogs = healthCheckLogs.where((l) => hasError(l.message)).toList();
+    final errorLogs = healthCheckLogs
+        .where((l) => hasError(l.message))
+        .toList();
 
     if (errorLogs.isEmpty) return [];
 
@@ -1641,14 +1742,18 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
         final sdkMatch = RegExp(r'SDK[:\s]*(\d+)').firstMatch(msg);
         if (sdkMatch != null) sdkVersion = sdkMatch.group(1);
       }
-      if ((msg.contains('Model:') || msg.contains('model=')) && deviceModel == null) {
-        final modelMatch = RegExp(r'(?:Model:|model=)\s*([^\s,\]]+)')
-            .firstMatch(msg);
+      if ((msg.contains('Model:') || msg.contains('model=')) &&
+          deviceModel == null) {
+        final modelMatch = RegExp(
+          r'(?:Model:|model=)\s*([^\s,\]]+)',
+        ).firstMatch(msg);
         if (modelMatch != null) deviceModel = modelMatch.group(1);
       }
-      if ((msg.contains('app_version') || msg.contains('version=')) && appVersion == null) {
-        final versionMatch = RegExp(r'(?:app_version|version)[=:]\s*([^\s,\]]+)')
-            .firstMatch(msg);
+      if ((msg.contains('app_version') || msg.contains('version=')) &&
+          appVersion == null) {
+        final versionMatch = RegExp(
+          r'(?:app_version|version)[=:]\s*([^\s,\]]+)',
+        ).firstMatch(msg);
         if (versionMatch != null) appVersion = versionMatch.group(1);
       }
     }
@@ -1685,24 +1790,28 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
 
     final recoveryRate = recoveredCount / errorLogs.length;
     final avgRecoveryTime = recoveredCount > 0
-        ? Duration(milliseconds: totalRecoveryTime.inMilliseconds ~/ recoveredCount)
+        ? Duration(
+            milliseconds: totalRecoveryTime.inMilliseconds ~/ recoveredCount,
+          )
         : null;
 
     // Return single summary (for single-user file)
-    return [{
-      'userId': _stats.uniqueUsers.isNotEmpty 
-          ? _stats.uniqueUsers.first 
-          : 'All Users',
-      'totalErrors': errorLogs.length,
-      'recoveredCount': recoveredCount,
-      'recoveryRate': recoveryRate,
-      'avgRecoveryTime': avgRecoveryTime,
-      'deviceModel': deviceModel,
-      'appVersion': appVersion,
-      'androidVersion': androidVersion,
-      'sdkVersion': sdkVersion,
-      'totalLogs': allLogs.length,
-    }];
+    return [
+      {
+        'userId': _stats.uniqueUsers.isNotEmpty
+            ? _stats.uniqueUsers.first
+            : 'All Users',
+        'totalErrors': errorLogs.length,
+        'recoveredCount': recoveredCount,
+        'recoveryRate': recoveryRate,
+        'avgRecoveryTime': avgRecoveryTime,
+        'deviceModel': deviceModel,
+        'appVersion': appVersion,
+        'androidVersion': androidVersion,
+        'sdkVersion': sdkVersion,
+        'totalLogs': allLogs.length,
+      },
+    ];
   }
 
   Widget _buildUserRecoverySection(ColorScheme scheme) {
@@ -1719,7 +1828,7 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
             Icon(Icons.people, size: 20, color: scheme.primary),
             const SizedBox(width: 8),
             Text(
-              summaries.isNotEmpty 
+              summaries.isNotEmpty
                   ? 'User Sync Recovery Stats (Top ${summaries.length})'
                   : 'User Sync Recovery Stats',
               style: theme.textTheme.titleSmall?.copyWith(
@@ -1733,7 +1842,9 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: isDark ? Colors.blueGrey.shade800.withValues(alpha: 0.3) : Colors.grey.shade100,
+              color: isDark
+                  ? Colors.blueGrey.shade800.withValues(alpha: 0.3)
+                  : Colors.grey.shade100,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: scheme.outlineVariant.withValues(alpha: 0.3),
@@ -1741,7 +1852,10 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
             ),
             child: Row(
               children: [
-                Icon(Icons.info_outline, color: scheme.primary.withValues(alpha: 0.6)),
+                Icon(
+                  Icons.info_outline,
+                  color: scheme.primary.withValues(alpha: 0.6),
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -1750,7 +1864,9 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
                     style: TextStyle(
                       fontSize: 13,
                       color: scheme.onSurface.withValues(alpha: 0.7),
-                ))),
+                    ),
+                  ),
+                ),
               ],
             ),
           )
@@ -1802,8 +1918,8 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
     final MaterialColor recoveryColor = recoveryRate >= 0.7
         ? Colors.green
         : recoveryRate >= 0.4
-            ? Colors.orange
-            : Colors.red;
+        ? Colors.orange
+        : Colors.red;
 
     return Material(
       color: Colors.transparent,
@@ -1817,111 +1933,109 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-          colors: isDark
-              ? [
-                  Colors.blueGrey.shade800.withValues(alpha: 0.6),
-                  Colors.blueGrey.shade900.withValues(alpha: 0.4),
-                ]
-              : [Colors.white, Colors.grey.shade50],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.3),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.06),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // User ID header
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: scheme.primary.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  Icons.person,
-                  size: 16,
-                  color: scheme.primary,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  userId,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                    color: scheme.onSurface,
-                  ),
-                ),
+              colors: isDark
+                  ? [
+                      Colors.blueGrey.shade800.withValues(alpha: 0.6),
+                      Colors.blueGrey.shade900.withValues(alpha: 0.4),
+                    ]
+                  : [Colors.white, Colors.grey.shade50],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: scheme.outlineVariant.withValues(alpha: 0.3),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.06),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          // Device info line
-          if (deviceModel != null || androidVersion != null)
-            Text(
-              [
-                if (androidVersion != null) 'Android $androidVersion',
-                if (sdkVersion != null) '(SDK $sdkVersion)',
-                if (deviceModel != null) '| $deviceModel',
-                if (appVersion != null) '| $appVersion',
-              ].join(' '),
-              style: TextStyle(
-                fontSize: 11,
-                color: scheme.onSurface.withValues(alpha: 0.6),
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          const Spacer(),
-          // Stats row
-          Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              // Recovery rate
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: recoveryColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  'Tỉ lệ khôi phục: $recoveryPercent%',
+              // User ID header
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: scheme.primary.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.person, size: 16, color: scheme.primary),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      userId,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        color: scheme.onSurface,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              // Device info line
+              if (deviceModel != null || androidVersion != null)
+                Text(
+                  [
+                    if (androidVersion != null) 'Android $androidVersion',
+                    if (sdkVersion != null) '(SDK $sdkVersion)',
+                    if (deviceModel != null) '| $deviceModel',
+                    if (appVersion != null) '| $appVersion',
+                  ].join(' '),
                   style: TextStyle(
                     fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: recoveryColor.shade700,
+                    color: scheme.onSurface.withValues(alpha: 0.6),
                   ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              const Spacer(),
+              // Stats row
+              Row(
+                children: [
+                  // Recovery rate
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: recoveryColor.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'Tỉ lệ khôi phục: $recoveryPercent%',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: recoveryColor.shade700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              // Recovery time and error count
+              Text(
+                [
+                  'T/g khôi phục TB: ${avgRecoveryTime != null ? _formatDuration(avgRecoveryTime) : 'N/A'}',
+                  'Số lần: $totalErrors',
+                ].join(' | '),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: scheme.onSurface.withValues(alpha: 0.7),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          // Recovery time and error count
-          Text(
-            [
-              'T/g khôi phục TB: ${avgRecoveryTime != null ? _formatDuration(avgRecoveryTime) : 'N/A'}',
-              'Số lần: $totalErrors',
-            ].join(' | '),
-            style: TextStyle(
-              fontSize: 11,
-              color: scheme.onSurface.withValues(alpha: 0.7),
-            ),
-          ),
-        ],
-      ),
         ),
       ),
     );
@@ -2006,7 +2120,8 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
                 items: [
                   const DropdownMenuItem(value: null, child: Text('Tất cả')),
                   ...LogLevel.values.map(
-                    (l) => DropdownMenuItem(value: l, child: Text(l.displayName)),
+                    (l) =>
+                        DropdownMenuItem(value: l, child: Text(l.displayName)),
                   ),
                 ],
                 onChanged: (val) {
@@ -2089,13 +2204,12 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
             ? LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  selectedColor,
-                  selectedColor.withValues(alpha: 0.8),
-                ],
+                colors: [selectedColor, selectedColor.withValues(alpha: 0.8)],
               )
             : null,
-        color: isSelected ? null : (isDark ? Colors.grey.shade800 : Colors.grey.shade100),
+        color: isSelected
+            ? null
+            : (isDark ? Colors.grey.shade800 : Colors.grey.shade100),
         borderRadius: BorderRadius.circular(12),
         boxShadow: isSelected
             ? [
@@ -2120,8 +2234,8 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
                 Icon(
                   icon,
                   size: 18,
-                  color: isSelected 
-                      ? Colors.white 
+                  color: isSelected
+                      ? Colors.white
                       : (isDark ? Colors.grey.shade400 : Colors.grey.shade600),
                 ),
                 const SizedBox(width: 8),
@@ -2130,9 +2244,11 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                    color: isSelected 
-                        ? Colors.white 
-                        : (isDark ? Colors.grey.shade300 : Colors.grey.shade700),
+                    color: isSelected
+                        ? Colors.white
+                        : (isDark
+                              ? Colors.grey.shade300
+                              : Colors.grey.shade700),
                   ),
                 ),
               ],
@@ -2205,10 +2321,7 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
             ),
             const SizedBox(height: 24),
             Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(12),
@@ -2216,11 +2329,7 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    Icons.info_outline,
-                    size: 18,
-                    color: scheme.primary,
-                  ),
+                  Icon(Icons.info_outline, size: 18, color: scheme.primary),
                   const SizedBox(width: 10),
                   Text(
                     'Hỗ trợ định dạng Kibana (@timestamp, request_body)',
@@ -2268,13 +2377,20 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
                 });
                 _rebuildFilteredLogs();
               },
-              icon: Icon(_sortAscending ? Icons.arrow_upward : Icons.arrow_downward, size: 18),
+              icon: Icon(
+                _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+                size: 18,
+              ),
               label: Text(_sortAscending ? 'Cũ nhất' : 'Mới nhất'),
             ),
             const SizedBox(width: 8),
             DropdownButton<int>(
               value: _rowsPerPage,
-              items: _pageSizeOptions.map((s) => DropdownMenuItem(value: s, child: Text('$s/trang'))).toList(),
+              items: _pageSizeOptions
+                  .map(
+                    (s) => DropdownMenuItem(value: s, child: Text('$s/trang')),
+                  )
+                  .toList(),
               onChanged: (val) {
                 if (val != null) {
                   setState(() {
@@ -2323,8 +2439,13 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
                         child: ExpansionTile(
                           leading: Icon(levelIcon, color: levelColor, size: 20),
                           title: Text(
-                            log.genTime != null ? dateFormat.format(log.genTime!) : '-',
-                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                            log.genTime != null
+                                ? dateFormat.format(log.genTime!)
+                                : '-',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                           subtitle: Text(
                             log.message.length > 100
@@ -2332,7 +2453,10 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
                                 : log.message,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: scheme.onSurfaceVariant,
+                            ),
                           ),
                           trailing: log.accountId != null
                               ? Chip(
@@ -2350,7 +2474,9 @@ class _ImportLogReportScreenState extends State<ImportLogReportScreen> {
                             Container(
                               width: double.infinity,
                               padding: const EdgeInsets.all(16),
-                              color: scheme.surfaceContainerHighest.withOpacity(0.5),
+                              color: scheme.surfaceContainerHighest.withOpacity(
+                                0.5,
+                              ),
                               child: SelectableText(
                                 log.message,
                                 style: TextStyle(
@@ -2439,10 +2565,7 @@ class _StatCard extends StatelessWidget {
           ],
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: color.withValues(alpha: 0.3),
-          width: 1,
-        ),
+        border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
         boxShadow: [
           BoxShadow(
             color: color.withValues(alpha: 0.15),
