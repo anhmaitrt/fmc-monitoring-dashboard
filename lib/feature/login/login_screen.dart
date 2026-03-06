@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:fmc_monitoring_dashboard/core/components/scaffold_widget.dart';
 import 'package:fmc_monitoring_dashboard/core/services/analytic_service.dart';
@@ -23,37 +25,60 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    _googleService.googleSignIn.authenticationEvents.listen((event) async  {
-      setState(() async {
-        var user = switch (event) {
-          GoogleSignInAuthenticationEventSignIn() => event.user,
-          _ => null,
-        };
+    _googleService.googleSignIn.authenticationEvents.listen((event) async {
+      final user = switch (event) {
+        GoogleSignInAuthenticationEventSignIn() => event.user,
+        _ => null,
+      };
 
-        print("Authentication event: $event");
+      // print("Authentication event: $event");
 
-        if (user == null) {
+      if (user == null) {
+        if (!mounted) return;
+        ToastService.show(
+          context: context,
+          'Đăng nhập thất bại',
+          type: ToastType.error,
+        );
+        return;
+      } else {
+        final authenticated = await GoogleDriveService.instance.authorizeUser(
+          user,
+        );
+        if (!authenticated) {
+          if (!mounted) return;
           ToastService.show(
-            context: context, 'Đăng nhập thất bại', type: ToastType.error,);
+            context: context,
+            'Không xác thực được Google Drive',
+            type: ToastType.error,
+          );
           return;
-        } else {
-          final authenticated = await GoogleDriveService.instance.authorizeUser(user);
-          if(!authenticated){
-            ToastService.show(context: context, 'Không xác thực được Google Drive', type: ToastType.error);
-            return;
-          }
-
-          _onLoginSuccess();
         }
-      });
+
+        unawaited(_onLoginSuccess());
+      }
     });
 
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) async {
-      if (await GoogleService.instance.signIn() != null) {
-        print('Log in to previous session');
-        _onLoginSuccess();
+      final user = await GoogleService.instance.signIn();
+      if (user != null) {
+        // print('Log in to previous session');
+        final authenticated = await GoogleDriveService.instance.authorizeUser(
+          user,
+        );
+        if (!authenticated) {
+          if (mounted) {
+            ToastService.show(
+              context: context,
+              'Không xác thực được Google Drive (Tự động đăng nhập)',
+              type: ToastType.error,
+            );
+          }
+          return;
+        }
+        unawaited(_onLoginSuccess());
       }
-    },);
+    });
   }
 
   @override
@@ -64,9 +89,7 @@ class _LoginScreenState extends State<LoginScreen> {
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            web.renderButton(),
-          ],
+          children: [web.renderButton()],
         ),
       ),
     );
@@ -75,7 +98,9 @@ class _LoginScreenState extends State<LoginScreen> {
   //#region ACTION
   Future<void> _onLoginSuccess() async {
     await AnalyticService.instance.fetchDB();
-    context.navigateTo(AppNavigationWidget(), replace: true);
+    if (!mounted) return;
+    unawaited(context.navigateTo(const AppNavigationWidget(), replace: true));
   }
+
   //#endregion
 }

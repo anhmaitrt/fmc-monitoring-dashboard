@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -19,16 +17,18 @@ class UserJourneyTimeline extends StatefulWidget {
 
 class _UserJourneyTimelineState extends State<UserJourneyTimeline> {
   List<UserJourneyEvent> _allEvents = [];
-  List<UserJourneySession> _sessions = [];
+  List<JourneyNode> _nodes = [];
   Set<String> _accounts = {};
   String? _selectedAccount;
+  final Set<int> _expandedNodes = {};
 
   Set<JourneyEventType> _enabledTypes = JourneyEventType.values.toSet();
-  int? _expandedSessionIndex;
   bool _isLoading = true;
+  String _searchQuery = '';
 
   final _timeFormat = DateFormat('HH:mm:ss');
   final _dateTimeFormat = DateFormat('dd/MM/yyyy HH:mm:ss');
+  final _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -44,26 +44,31 @@ class _UserJourneyTimelineState extends State<UserJourneyTimeline> {
     }
   }
 
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   void _parseData() {
     setState(() => _isLoading = true);
 
     Future.microtask(() {
-      final events = UserJourneyParser.parseJourneyEvents(widget.allLogs);
-      final accounts = UserJourneyParser.getUniqueAccounts(events);
+      final events = UserJourneyParser().parseJourneyEvents(widget.allLogs);
+      final accounts = UserJourneyParser().getUniqueAccounts(events);
 
       final filteredEvents = _selectedAccount != null
           ? events.where((e) => e.accountId == _selectedAccount).toList()
           : events;
 
-      final sessions = UserJourneyParser.groupIntoSessions(filteredEvents);
+      final nodes = UserJourneyParser().buildJourneyNodes(filteredEvents);
 
       if (mounted) {
         setState(() {
           _allEvents = events;
           _accounts = accounts;
-          _sessions = sessions;
+          _nodes = nodes;
           _isLoading = false;
-          _expandedSessionIndex = sessions.isNotEmpty ? 0 : null;
         });
       }
     });
@@ -79,16 +84,35 @@ class _UserJourneyTimelineState extends State<UserJourneyTimeline> {
       final filteredEvents = accountId != null
           ? _allEvents.where((e) => e.accountId == accountId).toList()
           : _allEvents;
-      final sessions = UserJourneyParser.groupIntoSessions(filteredEvents);
+      final nodes = UserJourneyParser().buildJourneyNodes(filteredEvents);
 
       if (mounted) {
         setState(() {
-          _sessions = sessions;
+          _nodes = nodes;
           _isLoading = false;
-          _expandedSessionIndex = sessions.isNotEmpty ? 0 : null;
         });
       }
     });
+  }
+
+  void _expandAll() {
+    setState(() {
+      _expandedNodes.addAll(List.generate(_nodes.length, (i) => i));
+    });
+  }
+
+  void _collapseAll() {
+    setState(() => _expandedNodes.clear());
+  }
+
+  bool _matchesSearch(UserJourneyEvent event) {
+    if (_searchQuery.isEmpty) return true;
+    final q = _searchQuery.toLowerCase();
+    return event.component.toLowerCase().contains(q) ||
+        event.action.toLowerCase().contains(q) ||
+        event.details.toLowerCase().contains(q) ||
+        (event.tag?.toLowerCase().contains(q) ?? false) ||
+        (event.layer?.toLowerCase().contains(q) ?? false);
   }
 
   @override
@@ -122,20 +146,26 @@ class _UserJourneyTimelineState extends State<UserJourneyTimeline> {
       children: [
         // ── Controls Row ──
         _buildControls(scheme, isDark),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
+
+        // ── Search + Expand/Collapse ──
+        _buildSearchAndActions(scheme, isDark),
+        const SizedBox(height: 8),
 
         // ── Summary Cards ──
         _buildSummaryCards(scheme, isDark),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
 
-        // ── Sessions Timeline ──
+        // ── Continuous Timeline ──
         Expanded(
-          child: ListView.builder(
-            itemCount: _sessions.length,
-            padding: const EdgeInsets.only(bottom: 24),
-            itemBuilder: (context, index) {
-              return _buildSessionCard(index, scheme, isDark);
-            },
+          child: SelectionArea(
+            child: ListView.builder(
+              itemCount: _nodes.length,
+              padding: const EdgeInsets.only(bottom: 24, left: 16, right: 16),
+              itemBuilder: (context, index) {
+                return _buildJourneyNode(_nodes[index], index, scheme, isDark);
+              },
+            ),
           ),
         ),
       ],
@@ -238,6 +268,103 @@ class _UserJourneyTimelineState extends State<UserJourneyTimeline> {
     );
   }
 
+  Widget _buildSearchAndActions(ColorScheme scheme, bool isDark) {
+    return Row(
+      children: [
+        // Search field
+        Expanded(
+          child: Container(
+            height: 40,
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: scheme.outlineVariant.withValues(alpha: 0.2),
+              ),
+            ),
+            child: TextField(
+              controller: _searchController,
+              style: TextStyle(fontSize: 13, color: scheme.onSurface),
+              decoration: InputDecoration(
+                hintText: 'Search events (component, action, details, tag)...',
+                hintStyle: TextStyle(
+                  fontSize: 13,
+                  color: scheme.onSurface.withValues(alpha: 0.4),
+                ),
+                prefixIcon: Icon(
+                  Icons.search_rounded,
+                  size: 18,
+                  color: scheme.onSurface.withValues(alpha: 0.4),
+                ),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(
+                          Icons.close_rounded,
+                          size: 16,
+                          color: scheme.onSurface.withValues(alpha: 0.5),
+                        ),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _searchQuery = '');
+                        },
+                      )
+                    : null,
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                isDense: true,
+              ),
+              onChanged: (val) => setState(() => _searchQuery = val),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+
+        // Expand all
+        Tooltip(
+          message: 'Expand all',
+          child: Material(
+            color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(10),
+            child: InkWell(
+              onTap: _expandAll,
+              borderRadius: BorderRadius.circular(10),
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Icon(
+                  Icons.unfold_more_rounded,
+                  size: 22,
+                  color: scheme.primary,
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 4),
+
+        // Collapse all
+        Tooltip(
+          message: 'Collapse all',
+          child: Material(
+            color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(10),
+            child: InkWell(
+              onTap: _collapseAll,
+              borderRadius: BorderRadius.circular(10),
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Icon(
+                  Icons.unfold_less_rounded,
+                  size: 22,
+                  color: scheme.primary,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildTypeFilterChip(JourneyEventType type, ColorScheme scheme) {
     final enabled = _enabledTypes.contains(type);
     return Padding(
@@ -259,11 +386,11 @@ class _UserJourneyTimelineState extends State<UserJourneyTimeline> {
         padding: EdgeInsets.zero,
         labelPadding: const EdgeInsets.symmetric(horizontal: 2),
         backgroundColor: scheme.surfaceContainerHighest,
-        selectedColor: _getTypeColor(type).withValues(alpha: 0.2),
-        checkmarkColor: _getTypeColor(type),
+        selectedColor: type.color.withValues(alpha: 0.2),
+        checkmarkColor: type.color,
         side: BorderSide(
           color: enabled
-              ? _getTypeColor(type).withValues(alpha: 0.5)
+              ? type.color.withValues(alpha: 0.5)
               : Colors.transparent,
         ),
       ),
@@ -273,15 +400,25 @@ class _UserJourneyTimelineState extends State<UserJourneyTimeline> {
   // ─── Summary Cards ─────────────────────────────────────────────────
 
   Widget _buildSummaryCards(ColorScheme scheme, bool isDark) {
-    final totalEvents = _sessions.fold<int>(
+    final totalNodes = _nodes.length;
+    final totalEvents = _nodes.fold<int>(
       0,
-      (sum, s) => sum + s.events.length,
+      (sum, n) => sum + n.events.length + 1, // +1 for the main state event
     );
-    final totalErrors = _sessions.fold<int>(0, (sum, s) => sum + s.errorCount);
-    final totalWarnings = _sessions.fold<int>(
-      0,
-      (sum, s) => sum + s.warningCount,
-    );
+    final totalErrors = _nodes.fold<int>(0, (sum, n) => sum + n.errorCount);
+    final totalWarnings = _nodes.fold<int>(0, (sum, n) => sum + n.warningCount);
+
+    // Count native vs flutter events
+    int nativeCount = 0;
+    int flutterCount = 0;
+    for (final node in _nodes) {
+      if (node.mainStateEvent.layer == 'Native') nativeCount++;
+      if (node.mainStateEvent.layer == 'Flutter') flutterCount++;
+      for (final e in node.events) {
+        if (e.layer == 'Native') nativeCount++;
+        if (e.layer == 'Flutter') flutterCount++;
+      }
+    }
 
     return Wrap(
       spacing: 10,
@@ -289,8 +426,8 @@ class _UserJourneyTimelineState extends State<UserJourneyTimeline> {
       children: [
         _MiniStatCard(
           icon: Icons.timeline,
-          label: 'Sessions',
-          value: _sessions.length.toString(),
+          label: 'Lifecycle States',
+          value: totalNodes.toString(),
           color: scheme.primary,
           isDark: isDark,
         ),
@@ -315,249 +452,301 @@ class _UserJourneyTimelineState extends State<UserJourneyTimeline> {
           color: Colors.orange,
           isDark: isDark,
         ),
+        _MiniStatCard(
+          icon: Icons.phone_android_rounded,
+          label: 'Native',
+          value: nativeCount.toString(),
+          color: Colors.green.shade600,
+          isDark: isDark,
+        ),
+        _MiniStatCard(
+          icon: Icons.flutter_dash,
+          label: 'Flutter',
+          value: flutterCount.toString(),
+          color: Colors.blue.shade600,
+          isDark: isDark,
+        ),
       ],
     );
   }
 
-  // ─── Session Card ─────────────────────────────────────────────────
+  // ─── Continuous Timeline Node (Main Bone) ──────────────────────────
 
-  Widget _buildSessionCard(int index, ColorScheme scheme, bool isDark) {
-    final session = _sessions[index];
-    final isExpanded = _expandedSessionIndex == index;
+  Widget _buildJourneyNode(
+    JourneyNode node,
+    int index,
+    ColorScheme scheme,
+    bool isDark,
+  ) {
+    final isLastNode = index == _nodes.length - 1;
+    final hasErrors = node.errorCount > 0;
+    final isExpanded = _expandedNodes.contains(index);
 
-    // Filter events by enabled types
-    final visibleEvents = session.events
+    // Filter secondary events by type and search
+    final visibleEvents = node.events
         .where((e) => _enabledTypes.contains(e.type))
+        .where(_matchesSearch)
         .toList();
 
-    final durationStr = _formatDuration(session.duration);
-    final hasErrors = session.errorCount > 0;
+    // If searching and neither the main event nor children match, hide the node
+    if (_searchQuery.isNotEmpty &&
+        !_matchesSearch(node.mainStateEvent) &&
+        visibleEvents.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: hasErrors
-              ? scheme.error.withValues(alpha: 0.3)
-              : scheme.outlineVariant.withValues(alpha: 0.2),
-        ),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: isDark
-              ? [
-                  Colors.blueGrey.shade800.withValues(alpha: 0.4),
-                  Colors.blueGrey.shade900.withValues(alpha: 0.2),
-                ]
-              : [Colors.white, Colors.grey.shade50],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Session header
-          InkWell(
-            onTap: () {
-              setState(() {
-                _expandedSessionIndex = isExpanded ? null : index;
-              });
-            },
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: Row(
-                children: [
-                  // Session number badge
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: hasErrors
-                            ? [
-                                scheme.error,
-                                scheme.error.withValues(alpha: 0.7),
-                              ]
-                            : [
-                                scheme.primary,
-                                scheme.primary.withValues(alpha: 0.7),
-                              ],
-                      ),
-                      borderRadius: BorderRadius.circular(10),
+          // ── The Main Bone (Vertical Line & Major Node Dot) ──
+          SizedBox(
+            width: 50,
+            child: Column(
+              children: [
+                // Major Node Dot
+                Container(
+                  width: 32,
+                  height: 32,
+                  margin: const EdgeInsets.only(top: 8),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: hasErrors
+                          ? [scheme.error, scheme.error.withValues(alpha: 0.7)]
+                          : [
+                              scheme.primary,
+                              scheme.primary.withValues(alpha: 0.7),
+                            ],
                     ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      '${index + 1}',
-                      style: TextStyle(
-                        color: scheme.onPrimary,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: (hasErrors ? scheme.error : scheme.primary)
+                            .withValues(alpha: 0.4),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  alignment: Alignment.center,
+                  child: Icon(
+                    node.mainStateEvent.lifecycleIcon,
+                    color: scheme.onPrimary,
+                    size: 16,
+                  ),
+                ),
+
+                // The continuous line segment connecting to the next node
+                if (!isLastNode || (isExpanded && visibleEvents.isNotEmpty))
+                  Expanded(
+                    child: Container(
+                      width: 4,
+                      margin: const EdgeInsets.symmetric(vertical: 4),
+                      decoration: BoxDecoration(
+                        color: scheme.primary.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(2),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 14),
+              ],
+            ),
+          ),
 
-                  // Session time range
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+          const SizedBox(width: 12),
+
+          // ── The Content (Major Node Header + Secondary Events) ──
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 8),
+
+                // Major Node Header (Lifecycle State)
+                InkWell(
+                  onTap: () {
+                    setState(() {
+                      if (isExpanded) {
+                        _expandedNodes.remove(index);
+                      } else {
+                        _expandedNodes.add(index);
+                      }
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: hasErrors
+                          ? scheme.errorContainer.withValues(alpha: 0.2)
+                          : scheme.primaryContainer.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: hasErrors
+                            ? scheme.error.withValues(alpha: 0.3)
+                            : scheme.primary.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Row(
                       children: [
-                        Text(
-                          '${_dateTimeFormat.format(session.startTime)} → ${_timeFormat.format(session.endTime)}',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
-                            color: scheme.onSurface,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Action title + App state badge
+                              Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      node.mainStateEvent.action,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15,
+                                        color: scheme.onSurface,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _AppStateBadge(
+                                    appState: node.mainStateEvent.appState,
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              // Timestamp + layer badge
+                              Row(
+                                children: [
+                                  Text(
+                                    _dateTimeFormat.format(node.startTime),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      fontFamily: 'monospace',
+                                      color: scheme.onSurface.withValues(
+                                        alpha: 0.6,
+                                      ),
+                                    ),
+                                  ),
+                                  if (node.mainStateEvent.layer != null) ...[
+                                    const SizedBox(width: 8),
+                                    _LayerBadge(
+                                      layer: node.mainStateEvent.layer!,
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              if (node.mainStateEvent.details.isNotEmpty &&
+                                  node.mainStateEvent.details !=
+                                      node.mainStateEvent.action) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  node.mainStateEvent.details,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: scheme.onSurface.withValues(
+                                      alpha: 0.5,
+                                    ),
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 2),
-                        Row(
-                          children: [
-                            _TagBadge(
-                              label: durationStr,
+                        if (node.duration != null &&
+                            node.duration!.inSeconds > 0)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: _TagBadge(
+                              label: _formatDuration(node.duration!),
                               color: scheme.primary,
                             ),
-                            const SizedBox(width: 6),
-                            _TagBadge(
-                              label: '${visibleEvents.length} events',
-                              color: scheme.tertiary,
+                          ),
+                        if (visibleEvents.isNotEmpty) ...[
+                          Text(
+                            '${visibleEvents.length} events',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: scheme.primary.withValues(alpha: 0.8),
                             ),
-                            if (session.errorCount > 0) ...[
-                              const SizedBox(width: 6),
-                              _TagBadge(
-                                label: '${session.errorCount} errors',
-                                color: scheme.error,
-                              ),
-                            ],
-                            if (session.warningCount > 0) ...[
-                              const SizedBox(width: 6),
-                              _TagBadge(
-                                label: '${session.warningCount} warnings',
-                                color: Colors.orange,
-                              ),
-                            ],
-                          ],
-                        ),
+                          ),
+                          Icon(
+                            isExpanded ? Icons.expand_less : Icons.expand_more,
+                            color: scheme.primary,
+                          ),
+                        ],
                       ],
                     ),
                   ),
+                ), // InkWell
 
-                  // Expand icon
-                  AnimatedRotation(
-                    turns: isExpanded ? 0.5 : 0,
-                    duration: const Duration(milliseconds: 200),
-                    child: Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      color: scheme.onSurface.withValues(alpha: 0.5),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+                const SizedBox(height: 16),
 
-          // Expanded events timeline
-          if (isExpanded)
-            Container(
-              constraints: BoxConstraints(
-                maxHeight: math.min(visibleEvents.length * 72.0 + 24, 500),
-              ),
-              child: visibleEvents.isEmpty
-                  ? Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Text(
-                        'No events matching current filters.',
-                        style: TextStyle(
-                          color: scheme.onSurface.withValues(alpha: 0.4),
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.only(
-                        left: 16,
-                        right: 16,
-                        bottom: 16,
-                      ),
-                      itemCount: visibleEvents.length,
-                      itemBuilder: (context, i) {
-                        return _buildEventRow(
+                // Secondary Events attached to this node
+                if (isExpanded && visibleEvents.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 24),
+                    child: Column(
+                      children: List.generate(
+                        visibleEvents.length,
+                        (i) => _buildSecondaryEventRow(
                           visibleEvents[i],
                           i,
                           visibleEvents.length,
+                          isLastNode,
                           scheme,
                           isDark,
-                        );
-                      },
+                        ),
+                      ),
                     ),
+                  ),
+
+                if (visibleEvents.isEmpty && !isLastNode)
+                  const SizedBox(height: 32),
+              ],
             ),
+          ),
         ],
       ),
     );
   }
 
-  // ─── Single Event Row ──────────────────────────────────────────────
+  // ─── Single Secondary Event Row ──────────────────────────────────────────────
 
-  Widget _buildEventRow(
+  Widget _buildSecondaryEventRow(
     UserJourneyEvent event,
     int index,
     int total,
+    bool isLastNode,
     ColorScheme scheme,
     bool isDark,
   ) {
-    final color = _getTypeColor(event.type);
+    final color = event.type.color;
     final isError = event.logLevel == LogLevel.error;
     final isWarning = event.logLevel == LogLevel.warning;
-    final isLast = index == total - 1;
 
-    return IntrinsicHeight(
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Timeline line and dot
+          // Timeline connector to main bone
           SizedBox(
-            width: 40,
+            width: 24,
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Dot
+                // Horizontal connector branch
                 Container(
-                  width: 14,
-                  height: 14,
-                  decoration: BoxDecoration(
-                    color: isError
-                        ? scheme.error
-                        : isWarning
-                        ? Colors.orange
-                        : color,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: (isError ? scheme.error : color).withValues(
-                          alpha: 0.4,
-                        ),
-                        blurRadius: 6,
-                      ),
-                    ],
-                  ),
-                  child: isError
-                      ? const Icon(Icons.close, size: 10, color: Colors.white)
-                      : null,
+                  height: 2,
+                  width: 16,
+                  margin: const EdgeInsets.only(top: 14),
+                  color: scheme.outlineVariant.withValues(alpha: 0.4),
                 ),
-                // Line
-                if (!isLast)
-                  Expanded(
-                    child: Container(
-                      width: 2,
-                      color: scheme.outlineVariant.withValues(alpha: 0.3),
-                    ),
-                  ),
               ],
             ),
           ),
@@ -565,7 +754,6 @@ class _UserJourneyTimelineState extends State<UserJourneyTimeline> {
           // Event card
           Expanded(
             child: Container(
-              margin: const EdgeInsets.only(bottom: 8),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
                 color: isError
@@ -585,7 +773,7 @@ class _UserJourneyTimelineState extends State<UserJourneyTimeline> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Header row: time, type badge, app state badge
+                  // Header row: time, type badge, layer badge, component, app state
                   Row(
                     children: [
                       Text(
@@ -597,33 +785,39 @@ class _UserJourneyTimelineState extends State<UserJourneyTimeline> {
                           color: scheme.onSurface.withValues(alpha: 0.5),
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 6),
                       _TagBadge(
                         label: event.type.emoji,
                         color: color,
                         small: true,
                       ),
                       const SizedBox(width: 4),
-                      _TagBadge(
-                        label: event.component.isNotEmpty
-                            ? event.component
-                            : event.type.displayName,
-                        color: color,
-                        small: true,
+                      if (event.layer != null) ...[
+                        _LayerBadge(layer: event.layer!, small: true),
+                        const SizedBox(width: 4),
+                      ],
+                      Expanded(
+                        child: _TagBadge(
+                          label: event.component.isNotEmpty
+                              ? event.component
+                              : event.type.displayName,
+                          color: color,
+                          small: true,
+                        ),
                       ),
-                      if (event.appState != AppState.unknown) ...[
+                      if (event.tag != null &&
+                          event.tag!.isNotEmpty &&
+                          event.tag != event.component) ...[
                         const SizedBox(width: 4),
                         _TagBadge(
-                          label: event.appState == AppState.foreground
-                              ? 'FG'
-                              : 'BG',
-                          color: event.appState == AppState.foreground
-                              ? Colors.green
-                              : Colors.blueGrey,
+                          label: event.tag!,
+                          color: scheme.outline,
                           small: true,
                         ),
                       ],
-                      const Spacer(),
+                      const SizedBox(width: 4),
+                      if (event.appState != AppState.unknown)
+                        _AppStateBadge(appState: event.appState, small: true),
                       if (isError)
                         Icon(Icons.error, size: 16, color: scheme.error),
                       if (isWarning)
@@ -634,7 +828,7 @@ class _UserJourneyTimelineState extends State<UserJourneyTimeline> {
                         ),
                     ],
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
 
                   // Action / summary
                   Text(
@@ -646,17 +840,17 @@ class _UserJourneyTimelineState extends State<UserJourneyTimeline> {
                     ),
                   ),
 
-                  // Details (truncated, expandable on tap)
+                  // Details (truncated)
                   if (event.details.isNotEmpty && event.details != event.action)
                     Padding(
-                      padding: const EdgeInsets.only(top: 2),
+                      padding: const EdgeInsets.only(top: 4),
                       child: Text(
                         event.details.length > 200
                             ? '${event.details.substring(0, 197)}...'
                             : event.details,
                         style: TextStyle(
                           fontSize: 11,
-                          color: scheme.onSurface.withValues(alpha: 0.5),
+                          color: scheme.onSurface.withValues(alpha: 0.6),
                           fontFamily: 'monospace',
                         ),
                         maxLines: 3,
@@ -673,25 +867,6 @@ class _UserJourneyTimelineState extends State<UserJourneyTimeline> {
   }
 
   // ─── Helpers ───────────────────────────────────────────────────────
-
-  Color _getTypeColor(JourneyEventType type) {
-    switch (type) {
-      case JourneyEventType.appLifecycle:
-        return Colors.blue;
-      case JourneyEventType.screen:
-        return Colors.purple;
-      case JourneyEventType.feature:
-        return Colors.teal;
-      case JourneyEventType.error:
-        return Colors.red;
-      case JourneyEventType.network:
-        return Colors.cyan;
-      case JourneyEventType.notification:
-        return Colors.amber.shade700;
-      case JourneyEventType.unknown:
-        return Colors.grey;
-    }
-  }
 
   String _formatDuration(Duration d) {
     if (d.inHours > 0) {
@@ -796,6 +971,94 @@ class _TagBadge extends StatelessWidget {
           fontWeight: FontWeight.w600,
           color: color,
         ),
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  }
+}
+
+/// Badge showing "Native" or "Flutter" layer origin
+class _LayerBadge extends StatelessWidget {
+  const _LayerBadge({required this.layer, this.small = false});
+
+  final String layer;
+  final bool small;
+
+  @override
+  Widget build(BuildContext context) {
+    final isNative = layer == 'Native';
+    final color = isNative ? Colors.green.shade600 : Colors.blue.shade600;
+    final icon = isNative ? Icons.phone_android : Icons.flutter_dash;
+
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: small ? 5 : 7,
+        vertical: small ? 1 : 2,
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: small ? 10 : 12, color: color),
+          const SizedBox(width: 3),
+          Text(
+            layer,
+            style: TextStyle(
+              fontSize: small ? 9 : 10,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Badge showing Foreground/Background app state
+class _AppStateBadge extends StatelessWidget {
+  const _AppStateBadge({required this.appState, this.small = false});
+
+  final AppState appState;
+  final bool small;
+
+  @override
+  Widget build(BuildContext context) {
+    if (appState == AppState.unknown) return const SizedBox.shrink();
+
+    final isForeground = appState == AppState.foreground;
+    final color = isForeground ? Colors.green : Colors.orange.shade700;
+    final label = isForeground ? 'FG' : 'BG';
+    final icon = isForeground ? Icons.visibility : Icons.visibility_off;
+
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: small ? 4 : 6,
+        vertical: small ? 1 : 2,
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: small ? 10 : 12, color: color),
+          const SizedBox(width: 2),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: small ? 9 : 10,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+        ],
       ),
     );
   }

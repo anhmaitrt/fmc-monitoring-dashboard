@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 import 'log_report_model.dart';
 
 /// The type/category of a journey event
@@ -49,6 +51,27 @@ enum JourneyEventType {
   }
 }
 
+extension JourneyEventTypeUI on JourneyEventType {
+  Color get color {
+    switch (this) {
+      case JourneyEventType.appLifecycle:
+        return Colors.blue;
+      case JourneyEventType.screen:
+        return Colors.purple;
+      case JourneyEventType.feature:
+        return Colors.teal;
+      case JourneyEventType.error:
+        return Colors.red;
+      case JourneyEventType.network:
+        return Colors.cyan;
+      case JourneyEventType.notification:
+        return Colors.amber.shade700;
+      case JourneyEventType.unknown:
+        return Colors.grey;
+    }
+  }
+}
+
 /// Represents the app's foreground/background state
 enum AppState {
   foreground,
@@ -78,6 +101,8 @@ class UserJourneyEvent {
     required this.details,
     required this.logLevel,
     this.accountId,
+    this.layer,
+    this.tag,
   });
 
   final DateTime timestamp;
@@ -88,25 +113,72 @@ class UserJourneyEvent {
   final String details;
   final String? accountId;
   final LogLevel logLevel;
+
+  /// The source layer: "Native" or "Flutter"
+  final String? layer;
+
+  /// The event tag/category (e.g. "auto_sync", "app", "other")
+  final String? tag;
 }
 
-/// A complete user journey session (grouped block of events)
-class UserJourneySession {
-  UserJourneySession({
+extension UserJourneyEventUI on UserJourneyEvent {
+  IconData get lifecycleIcon {
+    final act = action.toLowerCase();
+    if (act.contains('splash') ||
+        act.contains('open') ||
+        act.contains('started') ||
+        act.contains('init complete') ||
+        act.contains('first load')) {
+      return Icons.power_settings_new_rounded;
+    }
+    if (act.contains('backgrounded') || act.contains('background')) {
+      return Icons.minimize_rounded;
+    }
+    if (act.contains('resumed') || act.contains('foreground')) {
+      return Icons.flip_to_front_rounded;
+    }
+    if (act.contains('detached')) {
+      return Icons.close_rounded;
+    }
+    if (appState == AppState.background) return Icons.minimize_rounded;
+    if (appState == AppState.foreground) {
+      return Icons.flip_to_front_rounded;
+    }
+    return Icons.circle;
+  }
+}
+
+/// A major lifecycle node on the main timeline bone (e.g. App Killed, App Opened, Background, Foreground)
+/// Contains all secondary events that occurred while in this state.
+class JourneyNode {
+  JourneyNode({
     required this.startTime,
-    required this.endTime,
-    required this.events,
-    required this.errorCount,
-    required this.warningCount,
-    this.accountId,
-  });
+    required this.mainStateEvent,
+    this.endTime,
+    List<UserJourneyEvent>? events,
+  }) : events = events ?? [];
 
-  final String? accountId;
+  /// The timestamp this lifecycle state started
   final DateTime startTime;
-  final DateTime endTime;
-  final List<UserJourneyEvent> events;
-  final int errorCount;
-  final int warningCount;
 
-  Duration get duration => endTime.difference(startTime);
+  /// The timestamp this lifecycle state ended (moved to next state), if known
+  DateTime? endTime;
+
+  /// The primary event that triggered this node (e.g., App Open, App Background)
+  final UserJourneyEvent mainStateEvent;
+
+  /// All secondary events (syncs, screens, errors) that happened during this lifecycle state
+  final List<UserJourneyEvent> events;
+
+  /// Duration of this lifecycle state
+  Duration? get duration =>
+      endTime != null ? endTime!.difference(startTime) : null;
+
+  int get errorCount =>
+      events.where((e) => e.logLevel == LogLevel.error).length +
+      (mainStateEvent.logLevel == LogLevel.error ? 1 : 0);
+
+  int get warningCount =>
+      events.where((e) => e.logLevel == LogLevel.warning).length +
+      (mainStateEvent.logLevel == LogLevel.warning ? 1 : 0);
 }

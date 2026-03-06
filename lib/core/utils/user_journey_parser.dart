@@ -3,23 +3,51 @@ import '../../model/log_report/user_journey_event.dart';
 
 /// Parses a list of [ReportLogEntry] into meaningful [UserJourneyEvent]s
 /// grouped by user account.
+///
+/// Supports two log formats:
+/// - **Native (Kotlin)**: `[timestamp.SSS] [Level] [AppState] [Native] [Component] [Tag] message`
+/// - **Flutter (Dart)**: `[timestamp] [Level] [Background] [eventName] [runtimeType] message`
 class UserJourneyParser {
-  /// Regex to extract the structured message parts:
-  /// [timestamp] [Level] [STATE] [Layer] [Component] [Tag] message
-  static final _nativeLogPattern = RegExp(
-    r'\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+)\]\s*'
-    r'\[(\w+)\]\s*'
+  factory UserJourneyParser() => _instance;
+  UserJourneyParser._();
+
+  static final _instance = UserJourneyParser._();
+
+  // ─── ANSI / cleanup patterns ───────────────────────────────────────
+
+  /// ANSI escape codes (e.g. \u001b[34m)
+  static final _ansiPattern = RegExp(r'\u001b\[\d+m');
+
+  /// App-version wrapper injected by the server payload: "[1.2.3] ..."
+  static final _appVersionPrefix = RegExp(r'^\[[\d.]+\]\s*');
+
+  // ─── Structured log regex ──────────────────────────────────────────
+  //
+  // Matches both Native and Flutter log formats after ANSI stripping:
+  //   [timestamp]  [Level]  [AppState]?  [Layer]?  [Bracket1]  [Bracket2]?  body
+  //
+  // Native example:
+  //   [2026-03-02 14:00:05.123] [Info] [FOREGROUND] [Native] [BLEService] [auto_sync] Scanning...
+  //
+  // Flutter example:
+  //   [2026-03-02 14:00:05] [Info] [Background] [app] [AppLifecycleObserver] App is in the background
+  //   [2026-03-02 14:00:05] [Info] [app] [SplashBloc] Splash complete  (no app-state when foreground)
+
+  static final _structuredLogPattern = RegExp(
+    r'\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?)\]\s*' // G1: timestamp (millis optional)
     r'(?:⚠️\s*|🔴\s*)?'
-    r'\[(\w+)\]\s*' // FOREGROUND / BACKGROUND
-    r'\[(\w+)\]\s*' // Native / Flutter
-    r'\[([^\]]*)\]\s*' // Component name
-    r'\[([^\]]*)\]\s*' // Tag
-    r'(.*)', // Rest of message
+    r'\[(\w+)\]\s*' // G2: Level (Info/Warning/Error/Debug)
+    r'(?:⚠️\s*|🔴\s*)?' // optional emoji after level tag
+    r'(?:\[(FOREGROUND|BACKGROUND|Background)\]\s*)?' // G3: AppState (optional)
+    r'(?:\[(Native|Flutter)\]\s*)?' // G4: Layer (optional)
+    r'\[([^\]]*)\]\s*' // G5: First bracket content (component or eventName)
+    r'(?:\[([^\]]*)\]\s*)?' // G6: Second bracket content (tag or runtimeType, optional)
+    r'(.*)', // G7: Message body
     dotAll: true,
   );
 
   /// Parse all log entries into journey events
-  static List<UserJourneyEvent> parseJourneyEvents(List<ReportLogEntry> logs) {
+  List<UserJourneyEvent> parseJourneyEvents(List<ReportLogEntry> logs) {
     final events = <UserJourneyEvent>[];
 
     for (final log in logs) {
@@ -36,41 +64,77 @@ class UserJourneyParser {
     return events;
   }
 
-  /// Group events into sessions. A new session starts when there's a gap > [gapMinutes]
-  /// between consecutive events, or when an app lifecycle event indicates restart.
-  static List<UserJourneySession> groupIntoSessions(
-    List<UserJourneyEvent> events, {
-    int gapMinutes = 5,
-  }) {
+  /// Minimum time gap (in seconds) between events to auto-split into a new node.
+  static const _timeGapThresholdSeconds = 120; // 2 minutes
+
+  /// Group events into chronological `JourneyNode`s based on:
+  /// 1. Explicit major lifecycle events (app open, background, foreground, etc.)
+  /// 2. Session-boundary events (push notification received, sync timer triggered)
+  /// 3. Time gaps > 2 minutes between consecutive events
+  List<JourneyNode> buildJourneyNodes(List<UserJourneyEvent> events) {
     if (events.isEmpty) return [];
 
-    final sessions = <UserJourneySession>[];
-    var currentSessionEvents = <UserJourneyEvent>[events.first];
+    final nodes = <JourneyNode>[];
+    JourneyNode? currentNode;
+    DateTime? lastEventTime;
 
-    for (int i = 1; i < events.length; i++) {
-      final prev = events[i - 1];
-      final curr = events[i];
+    for (final event in events) {
+      // Check if this is a boundary: explicit lifecycle, session boundary, or time gap
+      final bool isBoundary =
+          _isMajorLifecycleEvent(event) ||
+          _isSessionBoundary(event) ||
+          (lastEventTime != null &&
+              event.timestamp.difference(lastEventTime).inSeconds >
+                  _timeGapThresholdSeconds);
 
-      final gap = curr.timestamp.difference(prev.timestamp);
-      final isNewSession =
-          gap.inMinutes > gapMinutes || _isAppRestartEvent(curr);
+      if (isBoundary) {
+        // Close the current node
+        if (currentNode != null) {
+          currentNode.endTime = event.timestamp;
+          nodes.add(currentNode);
+        }
 
-      if (isNewSession && currentSessionEvents.isNotEmpty) {
-        sessions.add(_buildSession(currentSessionEvents));
-        currentSessionEvents = [];
+        // Start a new node using this event as the anchor
+        currentNode = JourneyNode(
+          startTime: event.timestamp,
+          mainStateEvent: event,
+        );
+      } else {
+        // If we don't have a current node yet, create an implicit one
+        if (currentNode == null) {
+          currentNode = JourneyNode(
+            startTime: event.timestamp,
+            mainStateEvent: UserJourneyEvent(
+              timestamp: event.timestamp,
+              type: JourneyEventType.appLifecycle,
+              appState: event.appState,
+              component: 'System',
+              action: 'Session Started',
+              details: 'Implicit start',
+              logLevel: LogLevel.info,
+              accountId: event.accountId,
+              layer: event.layer,
+            ),
+          );
+        }
+        currentNode.events.add(event);
       }
-      currentSessionEvents.add(curr);
+
+      lastEventTime = event.timestamp;
     }
 
-    if (currentSessionEvents.isNotEmpty) {
-      sessions.add(_buildSession(currentSessionEvents));
+    if (currentNode != null) {
+      currentNode.endTime = currentNode.events.isNotEmpty
+          ? currentNode.events.last.timestamp
+          : currentNode.startTime;
+      nodes.add(currentNode);
     }
 
-    return sessions;
+    return nodes;
   }
 
   /// Get unique account IDs from events
-  static Set<String> getUniqueAccounts(List<UserJourneyEvent> events) {
+  Set<String> getUniqueAccounts(List<UserJourneyEvent> events) {
     return events
         .where((e) => e.accountId != null && e.accountId!.isNotEmpty)
         .map((e) => e.accountId!)
@@ -79,21 +143,26 @@ class UserJourneyParser {
 
   // ─── Private helpers ───────────────────────────────────────────────
 
-  static UserJourneyEvent? _parseLogEntry(ReportLogEntry log) {
-    final msg = log.message;
+  /// Pre-process the raw message: strip ANSI codes, app version prefix, emojis in tags
+  static String _preprocess(String raw) {
+    var msg = raw;
+    // Strip ANSI escape codes
+    msg = msg.replaceAll(_ansiPattern, '');
+    // Strip app version wrapper e.g. "[1.2.3] "
+    msg = msg.replaceFirst(_appVersionPrefix, '');
+    // Remove excessive whitespace
+    msg = msg.replaceAll(RegExp(r'\s+'), ' ').trim();
+    return msg;
+  }
+
+  UserJourneyEvent? _parseLogEntry(ReportLogEntry log) {
+    final cleaned = _preprocess(log.message);
     final timestamp = log.genTime!;
 
-    // Try native-style log first
-    final nativeMatch = _nativeLogPattern.firstMatch(msg);
-    if (nativeMatch != null) {
-      return _parseNativeLog(nativeMatch, log, timestamp);
-    }
-
-    // Try Flutter-style embedded JSON log
-    if (msg.contains('[Info]') ||
-        msg.contains('[Error]') ||
-        msg.contains('[Warning]')) {
-      return _parseFlutterLog(msg, log, timestamp);
+    // Try the structured log pattern (works for both Native and Flutter)
+    final match = _structuredLogPattern.firstMatch(cleaned);
+    if (match != null) {
+      return _parseStructuredLog(match, log, timestamp);
     }
 
     // Fallback: still create an event for errors
@@ -104,7 +173,7 @@ class UserJourneyParser {
         appState: AppState.unknown,
         component: 'Unknown',
         action: 'Error',
-        details: _cleanMessage(msg),
+        details: cleaned,
         accountId: log.accountId,
         logLevel: log.level,
       );
@@ -113,94 +182,59 @@ class UserJourneyParser {
     return null;
   }
 
-  static UserJourneyEvent _parseNativeLog(
+  /// Parse a structured log matched by _structuredLogPattern
+  UserJourneyEvent? _parseStructuredLog(
     RegExpMatch match,
     ReportLogEntry log,
     DateTime timestamp,
   ) {
-    final state = match.group(3) ?? '';
-    final component = match.group(5)?.trim() ?? '';
-    final tag = match.group(6)?.trim() ?? '';
+    final stateRaw = match.group(3) ?? '';
+    final layerRaw = match.group(4); // "Native" or "Flutter" or null
+    final bracket1 = match.group(5)?.trim() ?? '';
+    final bracket2 = match.group(6)?.trim();
     final body = match.group(7)?.trim() ?? '';
 
-    final appState = _parseAppState(state);
-    final type = _classifyEvent(component, tag, body, log.level);
-    final action = _extractAction(component, tag, body, type);
+    final appState = _parseAppState(stateRaw);
 
-    return UserJourneyEvent(
-      timestamp: timestamp,
-      type: type,
-      appState: appState,
-      component: component.isNotEmpty ? component : tag,
-      action: action,
-      details: _cleanMessage(body),
-      accountId: log.accountId,
-      logLevel: log.level,
-    );
-  }
+    // Determine layer, component, and tag based on what was captured.
+    //
+    // Native format has: [AppState] [Native] [Component] [Tag] body
+    //   → layer = "Native", component = bracket1, tag = bracket2
+    //
+    // Flutter format has: [Background]? [eventName] [runtimeType]? body
+    //   → layer = "Flutter", eventName = bracket1, component = bracket2 or bracket1
+    //
+    // If layer is explicitly present, assignment is straightforward.
+    // Otherwise, infer from the data.
 
-  static UserJourneyEvent? _parseFlutterLog(
-    String msg,
-    ReportLogEntry log,
-    DateTime timestamp,
-  ) {
-    // Extract the inner message from JSON wrapper
-    String innerMsg = msg;
-    if (msg.startsWith('{') && msg.contains('"message"')) {
-      try {
-        // Try to extract message field value via simple string ops
-        final msgStart = msg.indexOf('"message":"');
-        if (msgStart != -1) {
-          final contentStart = msgStart + 11;
-          // Find the matching closing quote (handle escaped quotes)
-          var end = contentStart;
-          while (end < msg.length) {
-            if (msg[end] == '"' && (end == 0 || msg[end - 1] != '\\')) break;
-            end++;
-          }
-          innerMsg = msg.substring(contentStart, end);
-        }
-      } catch (_) {}
-    }
+    String layer;
+    String component;
+    String? tag;
 
-    // Remove ANSI escape codes
-    innerMsg = innerMsg.replaceAll(RegExp(r'\\u001b\[\d+m'), '');
-
-    // Parse the structure: [version] [date] [Level] [tag] [component] message
-    String component = '';
-    String tag = '';
-    String body = innerMsg;
-    AppState appState = AppState.unknown;
-
-    // Extract tag and component from brackets
-    final bracketParts = RegExp(r'\[([^\]]*)\]').allMatches(innerMsg).toList();
-    if (bracketParts.length >= 4) {
-      // Skip version and date brackets, level bracket
-      // Look for tag and component
-      for (int i = 3; i < bracketParts.length; i++) {
-        final val = bracketParts[i].group(1) ?? '';
-        if (val == 'FOREGROUND' || val == 'Background') {
-          appState = val == 'FOREGROUND'
-              ? AppState.foreground
-              : AppState.background;
-        } else if (tag.isEmpty) {
-          tag = val;
-        } else if (component.isEmpty) {
-          component = val;
-        }
+    if (layerRaw != null) {
+      // Explicit layer marker present (Native logs always have [Native])
+      layer = layerRaw;
+      component = bracket1;
+      tag = bracket2;
+    } else {
+      // No explicit layer → likely Flutter
+      layer = 'Flutter';
+      // In Flutter format: bracket1 = eventName (tag), bracket2 = runtimeType (component)
+      if (bracket2 != null && bracket2.isNotEmpty) {
+        tag = bracket1;
+        component = bracket2;
+      } else {
+        // Only one bracket → use as component
+        component = bracket1;
+        tag = null;
       }
-      // Body is everything after the last bracket
-      final lastBracket = bracketParts.last;
-      body = innerMsg.substring(lastBracket.end).trim();
     }
 
-    if (component.isEmpty) component = tag;
+    final type = _classifyEvent(component, tag ?? '', body, log.level);
+    final action = _extractAction(component, tag ?? '', body, type);
 
-    final type = _classifyEvent(component, tag, body, log.level);
-    final action = _extractAction(component, tag, body, type);
-
-    // Filter out very noisy/uninteresting events
-    if (_isNoiseEvent(component, tag, body)) return null;
+    // Filter out noisy events
+    if (_isNoiseEvent(component, tag ?? '', body)) return null;
 
     return UserJourneyEvent(
       timestamp: timestamp,
@@ -208,9 +242,11 @@ class UserJourneyParser {
       appState: appState,
       component: component,
       action: action,
-      details: _cleanMessage(body.isNotEmpty ? body : innerMsg),
+      details: body.isNotEmpty ? body : component,
       accountId: log.accountId,
       logLevel: log.level,
+      layer: layer,
+      tag: tag,
     );
   }
 
@@ -237,51 +273,71 @@ class UserJourneyParser {
     final lt = tag.toLowerCase();
     final lb = body.toLowerCase();
 
-    // App lifecycle events
-    if (lc.contains('splash') ||
-        lt.contains('app') ||
-        lc.contains('_appstate')) {
+    // ── App Lifecycle ──
+    if (lc.contains('splash') || lc.contains('main') || lt == 'app') {
+      return JourneyEventType.appLifecycle;
+    }
+    if (lc == '_appstate' || lc.contains('applifecycleobserver')) {
       return JourneyEventType.appLifecycle;
     }
     if (lb.contains('init app complete') ||
         lb.contains('splash complete') ||
         lb.contains('app initialized') ||
-        lb.contains('app resumed')) {
+        lb.contains('app resumed') ||
+        lb.contains('app is in the foreground') ||
+        lb.contains('app is in the background') ||
+        lb.contains('app is detached') ||
+        lb.contains('app is inactive') ||
+        lb.contains('app is hidden') ||
+        lb.contains('appfirstload')) {
       return JourneyEventType.appLifecycle;
     }
 
-    // Screen navigation
+    // ── Screen Navigation ──
     if (lc.contains('screen') || lc.contains('page') || lc.contains('widget')) {
       return JourneyEventType.screen;
     }
 
-    // Network
+    // ── Network ──
     if (lc.contains('network') ||
         lc.contains('appservices') ||
+        lc.contains('appconnection') ||
         lt.contains('lite_mode') ||
         lb.contains('network status') ||
-        lb.contains('connectivity')) {
+        lb.contains('connectivity') ||
+        lb.contains('server heartbeat') ||
+        lb.contains('app configs fetched')) {
       return JourneyEventType.network;
     }
 
-    // Notifications
-    if (lc.contains('notification') || lc.contains('firebase')) {
+    // ── Notifications ──
+    if (lc.contains('notification') ||
+        lc.contains('firebase') ||
+        lc.contains('firebasenotification')) {
       return JourneyEventType.notification;
     }
 
-    // Features (BLE, auto-sync, measurement, device alert, etc.)
+    // ── Features (BLE, auto-sync, measurement, device, audio, sip, etc.) ──
     if (lt.contains('auto_sync') ||
         lt.contains('device_alert') ||
         lc.contains('ble') ||
         lc.contains('bluetooth') ||
+        lc.contains('blehandler') ||
+        lc.contains('ble_sdk_log') ||
         lc.contains('measurement') ||
+        lc.contains('measurementbloc') ||
         lc.contains('liveactivity') ||
         lc.contains('devicerepository') ||
+        lc.contains('deviceusecase') ||
         lc.contains('autosync') ||
         lc.contains('devicechannel') ||
         lc.contains('abnormal') ||
         lc.contains('sipservice') ||
-        lc.contains('audioservice')) {
+        lc.contains('audioservice') ||
+        lc.contains('socketclient') ||
+        lc.contains('backgroundservice') ||
+        lc.contains('watchdog') ||
+        lc.contains('deviceinfoservice')) {
       return JourneyEventType.feature;
     }
 
@@ -298,84 +354,127 @@ class UserJourneyParser {
   ) {
     final lb = body.toLowerCase();
 
-    // App lifecycle actions
+    // ── App Lifecycle actions (from main.dart init sequence) ──
     if (lb.contains('init app complete')) return 'App Init Complete';
+    if (lb.contains('init app failed')) return 'App Init Failed';
     if (lb.contains('splash complete')) return 'Splash Complete';
     if (lb.contains('app initialized')) return 'App Initialized';
+    if (lb.contains('initialize sharedpreferences'))
+      return 'Init SharedPreferences';
+    if (lb.contains('initialize firebase core')) return 'Init Firebase Core';
+    if (lb.contains('firebase core initialized')) return 'Firebase Core Ready';
+    if (lb.contains('initialize native channels'))
+      return 'Init Native Channels';
+    if (lb.contains('initialize other app services'))
+      return 'Init App Services';
+    if (lb.contains('localdatabase initialized')) return 'DB Initialized';
+    if (lb.contains('di configured')) return 'DI Configured';
+    if (lb.contains('blehandler initialized')) return 'BLE Handler Init';
+    if (lb.contains('initializing firebase services'))
+      return 'Init Firebase Services';
+    if (lb.contains('done initializing firebase services'))
+      return 'Firebase Services Ready';
+    if (lb.contains('initializing notification services'))
+      return 'Init Notifications';
+
+    // ── App State transitions (from AppLifecycleObserver) ──
+    if (lb.contains('app is in the foreground')) return 'App Resumed';
+    if (lb.contains('app is in the background')) return 'App Backgrounded';
+    if (lb.contains('app is detached')) return 'App Detached';
+    if (lb.contains('app is inactive')) return 'App Inactive';
+    if (lb.contains('app is hidden')) return 'App Hidden';
     if (lb.contains('user authenticated')) return 'User Authenticated';
     if (lb.contains('listener triggered')) return 'State Changed';
+    if (lb.contains('appfirstload')) return 'First Load';
+
+    // ── Network actions ──
     if (lb.contains('checking network')) return 'Checking Network';
     if (lb.contains('checking lite mode')) return 'Checking Lite Mode';
     if (lb.contains('server heartbeat')) return 'Server Heartbeat';
     if (lb.contains('cgm connection')) return 'CGM Connection Check';
     if (lb.contains('all checks completed')) return 'All Checks Complete';
     if (lb.contains('finalstate=')) return 'Final State Determined';
-    if (lb.contains('appfirstload')) return 'First Load';
+    if (lb.contains('network status') || lb.contains('network details')) {
+      return 'Network Status';
+    }
+    if (lb.contains('server heartbeat: ok')) return 'Server OK';
+    if (lb.contains('app configs fetched')) return 'Config Fetched';
 
-    // Feature actions
-    if (lb.contains('start auto sync')) return 'Auto Sync Started';
+    // ── Feature actions ──
+    if (lb.contains('start auto sync') ||
+        lb.contains('start auto-sync') ||
+        lb.contains('restart auto-sync')) {
+      return 'Auto Sync Started';
+    }
+    if (lb.contains('watchdog')) return 'Watchdog Triggered';
     if (lb.contains('stop ble services')) return 'BLE Stopped';
     if (lb.contains('start scanning')) return 'BLE Scanning';
     if (lb.contains('fetched managed device')) return 'Devices Fetched';
     if (lb.contains('start live activity')) return 'Live Activity Started';
     if (lb.contains('stop sync timer')) return 'Sync Timer Stopped';
     if (lb.contains('sync timer triggered')) return 'Sync Timer Triggered';
-    if (lb.contains('health check') || lb.contains('healthcheck'))
+    if (lb.contains('health check') || lb.contains('healthcheck')) {
       return 'Health Check';
+    }
     if (lb.contains('start tracking')) return 'Tracking Started';
     if (lb.contains('startbackgroundsync')) return 'Background Sync Started';
     if (lb.contains('stopbackgroundsync')) return 'Background Sync Stopped';
-    if (lb.contains('detect') && lb.contains('missing records'))
+    if (lb.contains('detect') && lb.contains('missing records')) {
       return 'Missing Records Detected';
+    }
     if (lb.contains('sync measurement')) return 'Data Synced to Server';
     if (lb.contains('abnormal')) return 'Abnormal Data Detected';
     if (lb.contains('outofmemory')) return 'Out of Memory';
+    if (lb.contains('done handling task when app back')) {
+      return 'Resume Tasks Complete';
+    }
+    if (lb.contains('no valid device for auto-sync')) {
+      return 'No Valid Device';
+    }
+    if (lb.contains('sipservice') && lb.contains('cleanup')) {
+      return 'SIP Cleanup';
+    }
 
-    // Notification actions
+    // ── Notification actions ──
     if (lb.contains('message received')) return 'Push Received';
-    if (lb.contains('trigger ble service from silent'))
+    if (lb.contains('trigger ble service from silent')) {
       return 'Silent Push → BLE Sync';
-    if (lb.contains('restart auto-sync')) return 'Restart Auto-Sync';
+    }
 
-    // Network actions
-    if (lb.contains('network status') || lb.contains('network details'))
-      return 'Network Status';
-    if (lb.contains('server heartbeat: ok')) return 'Server OK';
-    if (lb.contains('app configs fetched')) return 'Config Fetched';
-
-    // Error actions
+    // ── Error actions ──
     if (type == JourneyEventType.error) {
-      if (lb.contains('outofmemory')) return 'OOM Error';
-      if (lb.contains('oom_error')) return 'OOM Error';
+      if (lb.contains('outofmemory') || lb.contains('oom_error')) {
+        return 'OOM Error';
+      }
       if (lb.contains('platformexception')) return 'Platform Exception';
       if (lb.contains('gatt')) return 'GATT Error';
       return 'Error';
     }
 
-    // Generic
+    // ── Generic ──
     if (lb.contains('started') || lb.contains('start')) return 'Started';
     if (lb.contains('stopped') || lb.contains('stop')) return 'Stopped';
     if (lb.contains('done') || lb.contains('complete')) return 'Completed';
 
     // Truncate body for short label
-    if (body.length > 50) return body.substring(0, 47) + '...';
+    if (body.length > 50) return '${body.substring(0, 47)}...';
     return body.isEmpty ? component : body;
   }
 
   static bool _isNoiseEvent(String component, String tag, String body) {
     final lb = body.toLowerCase();
-    // Filter out very repetitive health-check logs that don't add journey info
-    // Keep only the first occurrence per session (handled at grouping level)
-    // Also filter out pure config/remote-config noise
+    // Filter out very repetitive logs that don't add journey info
     if (lb.contains('initializing firebase remote configs') &&
         !lb.contains('done')) {
       return true;
     }
     if (lb.contains('server connection monitor already running')) return true;
-    if (lb.contains('server connection check') && lb.contains('waiting for'))
+    if (lb.contains('server connection check') && lb.contains('waiting for')) {
       return true;
-    if (lb.contains('checkandupdatestate') && !lb.contains('start'))
+    }
+    if (lb.contains('checkandupdatestate') && !lb.contains('start')) {
       return true;
+    }
     if (lb.contains('checkandreloadforlanguagechange')) return true;
     if (lb.contains('firebase lite mode:')) return true;
     if (lb.contains('user manual lite mode:')) return true;
@@ -383,44 +482,51 @@ class UserJourneyParser {
     if (lb.contains('state: connected - restarting')) return true;
     if (lb.contains('appconnection state transition')) return true;
     if (lb.contains('firebase configs:')) return true;
+    // Filter BLE SDK noise (very frequent during scanning)
+    if (lb.contains('[ble_sdk_log]') && lb.length < 30) return true;
     return false;
   }
 
-  static bool _isAppRestartEvent(UserJourneyEvent event) {
+  /// True for explicit app lifecycle transitions (app open, close, foreground, background)
+  static bool _isMajorLifecycleEvent(UserJourneyEvent event) {
+    if (event.type != JourneyEventType.appLifecycle) return false;
+
     final lb = event.details.toLowerCase();
+    final action = event.action;
+
     return lb.contains('init app complete') ||
+        lb.contains('app is in the foreground') ||
+        lb.contains('app is in the background') ||
+        lb.contains('app is detached') ||
         lb.contains('appfirstload') ||
-        (event.component.contains('Splash') &&
-            lb.contains('listener triggered'));
+        lb.contains('splash complete') ||
+        action == 'App Init Complete' ||
+        action == 'App Resumed' ||
+        action == 'App Backgrounded' ||
+        action == 'App Detached' ||
+        action == 'Splash Complete' ||
+        action == 'First Load';
   }
 
-  static String _cleanMessage(String msg) {
-    // Remove ANSI escape codes
-    msg = msg.replaceAll(RegExp(r'\\u001b\[\d+m'), '');
-    // Remove excessive whitespace
-    msg = msg.replaceAll(RegExp(r'\s+'), ' ').trim();
-    return msg;
-  }
+  /// True for events that mark the start of a new "session" of activity,
+  /// e.g. push notification arrivals or sync timer triggers.
+  static bool _isSessionBoundary(UserJourneyEvent event) {
+    final action = event.action;
+    final lb = event.details.toLowerCase();
 
-  static UserJourneySession _buildSession(List<UserJourneyEvent> events) {
-    int errors = 0;
-    int warnings = 0;
-    for (final e in events) {
-      if (e.logLevel == LogLevel.error) errors++;
-      if (e.logLevel == LogLevel.warning) warnings++;
+    // Push notification received — signals a new sync cycle
+    if (action == 'Push Received' || lb.contains('message received')) {
+      return true;
     }
-    return UserJourneySession(
-      accountId: events
-          .firstWhere(
-            (e) => e.accountId != null && e.accountId!.isNotEmpty,
-            orElse: () => events.first,
-          )
-          .accountId,
-      startTime: events.first.timestamp,
-      endTime: events.last.timestamp,
-      events: events,
-      errorCount: errors,
-      warningCount: warnings,
-    );
+    // Sync timer trigger — signals a new sync cycle
+    if (lb.contains('sync timer triggered')) return true;
+    // Watchdog trigger — signals a new sync cycle
+    if (lb.contains('watchdog')) return true;
+    // Silent push → BLE sync
+    if (action == 'Silent Push → BLE Sync') return true;
+    // Restart auto-sync from notification
+    if (lb.contains('restart auto-sync')) return true;
+
+    return false;
   }
 }

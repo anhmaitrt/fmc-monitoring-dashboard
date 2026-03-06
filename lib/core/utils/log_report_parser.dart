@@ -28,11 +28,15 @@ Map<String, dynamic> parseLogCsvInIsolate(String content) {
     final header = rows.first.map((e) => e.toString().trim()).toList();
 
     final timestampIndex = indexOfAny(header, ['@timestamp', 'timestamp']);
-    final requestBodyIndex = indexOfAny(header, ['request_body', 'requestBody']);
+    final requestBodyIndex = indexOfAny(header, [
+      'request_body',
+      'requestBody',
+    ]);
 
     if (timestampIndex == -1 || requestBodyIndex == -1) {
       return {
-        'error': 'Không tìm thấy cột "timestamp/@timestamp" hoặc "request_body" trong header CSV.',
+        'error':
+            'Không tìm thấy cột "timestamp/@timestamp" hoặc "request_body" trong header CSV.',
         'logs': <Map<String, dynamic>>[],
       };
     }
@@ -70,7 +74,32 @@ Map<String, dynamic> parseLogCsvInIsolate(String content) {
           final genTime = int.tryParse(genTimeRaw.toString());
           if (genTime == null) continue;
 
-          final message = messageRaw.toString();
+          var message = messageRaw.toString();
+
+          // Flutter logs arrive as JSON-wrapped messages:
+          // {"message":"[3.7.2] [timestamp] [Level] ...", "accountId":"...", "info":{...}}
+          // Unwrap to extract the inner message and metadata.
+          String? accountId = decoded['accountId']?.toString();
+          String? deviceModel;
+          String? platform;
+
+          try {
+            if (message.startsWith('{')) {
+              final msgJson = jsonDecode(message);
+              // Extract the actual log message
+              final innerMsg = msgJson['message'];
+              if (innerMsg is String && innerMsg.isNotEmpty) {
+                message = innerMsg;
+              }
+              // Extract accountId
+              accountId ??= msgJson['accountId']?.toString();
+              // Extract device info
+              final info = msgJson['info'] as Map?;
+              final device = info?['device'] as Map?;
+              deviceModel = device?['model']?.toString();
+              platform = device?['platform']?.toString();
+            }
+          } catch (_) {}
 
           // Determine log level from message content
           String level = 'info';
@@ -79,28 +108,6 @@ Map<String, dynamic> parseLogCsvInIsolate(String content) {
           } else if (message.contains('[Warning]') || message.contains('⚠️')) {
             level = 'warning';
           }
-
-          // Try to extract accountId - first from parent JSON, then from message
-          String? accountId = decoded['accountId']?.toString();
-          try {
-            if (accountId == null && message.startsWith('{')) {
-              final msgJson = jsonDecode(message);
-              accountId = msgJson['accountId']?.toString();
-            }
-          } catch (_) {}
-
-          // Try to extract device info from nested JSON
-          String? deviceModel;
-          String? platform;
-          try {
-            if (message.startsWith('{')) {
-              final msgJson = jsonDecode(message);
-              final info = msgJson['info'] as Map?;
-              final device = info?['device'] as Map?;
-              deviceModel = device?['model']?.toString();
-              platform = device?['platform']?.toString();
-            }
-          } catch (_) {}
 
           logs.add({
             'timestamp': timestampRaw,
@@ -143,11 +150,14 @@ List<ReportLogEntry> convertToReportEntries(List<dynamic> rawLogs) {
 
   return rawLogs.map((m) {
     final map = m as Map<String, dynamic>;
-    
+
     final genTimeMs = map['genTime'] as int;
     // Convert to DateTime (handle both seconds and milliseconds)
     final ms = genTimeMs < 1000000000000 ? genTimeMs * 1000 : genTimeMs;
-    final genTime = DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true).toLocal();
+    final genTime = DateTime.fromMillisecondsSinceEpoch(
+      ms,
+      isUtc: true,
+    ).toLocal();
 
     LogLevel level;
     switch (map['level']) {
